@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 )
@@ -71,7 +70,7 @@ func CompleteTodoHandler(c *gin.Context) {
 }
 
 func convertHTTPBodyToTodo(httpBody io.ReadCloser) (todo.Todo, int, error) {
-	body, err := ioutil.ReadAll(httpBody)
+	body, err := io.ReadAll(httpBody)
 	if err != nil {
 		return todo.Todo{}, http.StatusInternalServerError, err
 	}
