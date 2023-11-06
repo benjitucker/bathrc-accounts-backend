@@ -1,47 +1,31 @@
-FROM public.ecr.aws/docker/library/golang:alpine AS test
+FROM public.ecr.aws/lambda/provided:al2 as builder
 
-# git is needed for the 'go mod download' command
-RUN apk update && apk upgrade && apk add --no-cache git
+# install compiler
+RUN yum install -y golang wget tar
+RUN go env -w GOPROXY=https://proxy.golang.org
 
 # install a specific version of the linter
-RUN wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s latest
+RUN wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | BINDIR=/usr/bin sh -s v1.50.1
 
 # Set necessary environmet variables needed for our image
-ENV GO111MODULE=on \
-    CGO_ENABLED=0 \
-    GOOS=linux \
+ENV GOOS=linux \
     GOARCH=amd64
 
-# Move to working directory /build
-WORKDIR /build
-
-# Copy and download dependency using go mod
-COPY go.mod .
-COPY go.sum .
+# cache dependencies
+ADD go.mod go.sum ./
 RUN go mod download
 
-# Copy the code into the container
-COPY . .
+# Add the code to the container
+ADD . .
 
 # Lint check the source code
 RUN golangci-lint run --timeout 5m0s
 
-# Build the application
-RUN go build -o main .
+# build
+RUN go build -o /main
 
-# Move to /dist directory as the place for resulting binary folder
-WORKDIR /dist
+# copy artifacts to a clean image
+FROM public.ecr.aws/lambda/provided:al2
+COPY --from=builder /main /main
 
-# Copy binary from build to main folder
-RUN cp /build/main .
-
-# Build a small image
-FROM public.ecr.aws/docker/library/alpine:latest as final
-
-# ca-certificates are needed for https connection to mongo atlas
-RUN apk update && apk upgrade && apk add --no-cache ca-certificates
-
-COPY --from=test /dist/main /
-
-# Command to run
-ENTRYPOINT ["/main"]
+ENTRYPOINT [ "/main" ]

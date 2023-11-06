@@ -3,20 +3,17 @@ module benjitucker/bathrc-accounts
 go 1.19
 
 require (
-	github.com/auth0-community/go-auth0 v1.0.0
-	github.com/benjitucker/bathrc-accounts v0.0.0-20230710172312-b2087237f348
+	github.com/aws/aws-lambda-go v1.41.0
 	github.com/gin-gonic/gin v1.9.1
+	github.com/go-kit/log v0.2.1
 	github.com/rs/xid v1.5.0
-	gopkg.in/square/go-jose.v2 v2.6.0
 )
 
 require (
-	github.com/Pungyeon/golang-auth0-example v0.0.0-20180726103737-8ad8a9f1050a // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
