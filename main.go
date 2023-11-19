@@ -71,7 +71,7 @@ func main() {
 		"caller", log.DefaultCaller,
 	)
 
-	_ = level.Info(logger).Log("msg", "service started")
+	_ = level.Info(logger).Log("msg", "service started 21:56") /* TODO remove timestamp */
 	defer func() { _ = level.Info(logger).Log("msg", "service finished") }()
 
 	flag.Parse()
