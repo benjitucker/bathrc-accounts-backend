@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"io"
 	"net/http"
 	"os"
 )
@@ -21,8 +22,18 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
 	var buf bytes.Buffer
 
+	dsResp, err := http.Get("https://ifconfig.me/ip")
+	if err != nil {
+		return serverError(err)
+	}
+
+	rspBody, err := io.ReadAll(dsResp.Body)
+	if err != nil {
+		return serverError(err)
+	}
+
 	body, err := json.Marshal(map[string]interface{}{
-		"message": "Hello World!",
+		"rspBody": string(rspBody),
 	})
 	if err != nil {
 		return serverError(err)
