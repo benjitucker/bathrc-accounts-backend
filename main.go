@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 )
 
 var (
@@ -22,7 +23,12 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
 	var buf bytes.Buffer
 
-	dsResp, err := http.Get("https://ifconfig.me/ip")
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	//dsResp, err := client.Get("https://ifconfig.me/ip")
+	dsResp, err := client.Get(req.Body)
 	if err != nil {
 		return serverError(err)
 	}
