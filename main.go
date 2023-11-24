@@ -23,28 +23,37 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
 	var buf bytes.Buffer
 
-	client := http.Client{
-		Timeout: 5 * time.Second,
-	}
+	if req.Body == "test" {
+		body, err := json.Marshal(req)
+		if err != nil {
+			return serverError(err)
+		}
+		json.HTMLEscape(&buf, body)
+	} else {
 
-	//dsResp, err := client.Get("https://ifconfig.me/ip")
-	dsResp, err := client.Get(req.Body)
-	if err != nil {
-		return serverError(err)
-	}
+		client := http.Client{
+			Timeout: 5 * time.Second,
+		}
 
-	rspBody, err := io.ReadAll(dsResp.Body)
-	if err != nil {
-		return serverError(err)
-	}
+		//dsResp, err := client.Get("https://ifconfig.me/ip")
+		dsResp, err := client.Get(req.Body)
+		if err != nil {
+			return serverError(err)
+		}
 
-	body, err := json.Marshal(map[string]interface{}{
-		"rspBody": string(rspBody),
-	})
-	if err != nil {
-		return serverError(err)
+		rspBody, err := io.ReadAll(dsResp.Body)
+		if err != nil {
+			return serverError(err)
+		}
+
+		body, err := json.Marshal(map[string]interface{}{
+			"rspBody": string(rspBody),
+		})
+		if err != nil {
+			return serverError(err)
+		}
+		json.HTMLEscape(&buf, body)
 	}
-	json.HTMLEscape(&buf, body)
 
 	resp := events.APIGatewayProxyResponse{
 		StatusCode:      200,
