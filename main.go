@@ -93,7 +93,7 @@ func main() {
 
 	logLevel, exists := os.LookupEnv("LOG_LEVEL")
 	if !exists {
-		logLevel = "info"
+		logLevel = "debug"
 	}
 
 	switch logLevel {
