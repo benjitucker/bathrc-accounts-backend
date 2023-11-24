@@ -1,6 +1,7 @@
 package main
 
 import (
+	"benjitucker/bathrc-accounts/housing_list"
 	"bytes"
 	"encoding/json"
 	"flag"
@@ -23,7 +24,13 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
 	var buf bytes.Buffer
 
-	if req.Body == "test" {
+	if req.Path == "/backend/housing_location" {
+		body, err := json.Marshal(housing_list.Get())
+		if err != nil {
+			return serverError(err)
+		}
+		json.HTMLEscape(&buf, body)
+	} else if req.Body == "test" {
 		body, err := json.Marshal(req)
 		if err != nil {
 			return serverError(err)
