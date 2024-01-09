@@ -3,7 +3,7 @@ module benjitucker/bathrc-accounts
 go 1.19
 
 require (
-	github.com/aws/aws-lambda-go v1.41.0
+	github.com/aws/aws-lambda-go v1.44.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-kit/log v0.2.1
 	github.com/rs/xid v1.5.0
