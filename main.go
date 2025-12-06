@@ -1,23 +1,23 @@
 package main
 
 import (
-	"benjitucker/bathrc-accounts/housing_list"
-	"benjitucker/bathrc-accounts/todo"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
+	"net/http"
+	"os"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"io"
-	"net/http"
-	"os"
-	"time"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
-	logger log.Logger
+	logger      log.Logger
+	mongoClient mongo.Client
 )
 
 func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -25,48 +25,14 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
 	var buf bytes.Buffer
 
-	if req.Path == "/backend/housing_location" {
-		body, err := json.Marshal(housing_list.Get())
-		if err != nil {
-			return serverError(err)
-		}
-		json.HTMLEscape(&buf, body)
-	} else if req.Path == "/backend/todo" {
-		body, err := json.Marshal(todo.Get())
-		if err != nil {
-			return serverError(err)
-		}
-		json.HTMLEscape(&buf, body)
-	} else if req.Body == "test" {
-		body, err := json.Marshal(req)
+	if req.Path == "/jotform-hook" {
+		body, err := json.Marshal("hookie")
 		if err != nil {
 			return serverError(err)
 		}
 		json.HTMLEscape(&buf, body)
 	} else {
-
-		client := http.Client{
-			Timeout: 5 * time.Second,
-		}
-
-		//dsResp, err := client.Get("https://ifconfig.me/ip")
-		dsResp, err := client.Get(req.Body)
-		if err != nil {
-			return serverError(err)
-		}
-
-		rspBody, err := io.ReadAll(dsResp.Body)
-		if err != nil {
-			return serverError(err)
-		}
-
-		body, err := json.Marshal(map[string]interface{}{
-			"rspBody": string(rspBody),
-		})
-		if err != nil {
-			return serverError(err)
-		}
-		json.HTMLEscape(&buf, body)
+		return serverError(errors.New("not found"))
 	}
 
 	resp := events.APIGatewayProxyResponse{
@@ -100,7 +66,7 @@ func main() {
 		"caller", log.DefaultCaller,
 	)
 
-	_ = level.Info(logger).Log("msg", "service started 21:56") /* TODO remove timestamp */
+	_ = level.Info(logger).Log("msg", "service started")
 	defer func() { _ = level.Info(logger).Log("msg", "service finished") }()
 
 	flag.Parse()
@@ -123,6 +89,26 @@ func main() {
 		logger = level.NewFilter(logger, level.AllowAll())
 		_ = level.Error(logger).Log("msg", "bad logging level, defaulting to all")
 	}
+
+	/*
+		uri, exists := os.LookupEnv("MONGO_URI")
+		if !exists {
+			_ = level.Error(logger).Log("You must set your 'MONGO_URI' environment variable")
+			panic(nil)
+		}
+		mongoClient, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
+		if err != nil {
+			panic(err)
+		}
+		defer func() {
+			if err := mongoClient.Disconnect(context.Background()); err != nil {
+				panic(err)
+			}
+		}()
+
+		housing_list.SetMongoClient(mongoClient)
+
+	*/
 
 	lambda.Start(HandleRequest)
 }

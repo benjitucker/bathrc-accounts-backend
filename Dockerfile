@@ -1,8 +1,5 @@
 FROM public.ecr.aws/lambda/provided:al2 as builder
 
-# TODO when github supports ARM based hosted runners, swithc to ar as its cheaper to run
-# https://github.blog/changelog/2023-10-30-accelerate-your-ci-cd-with-arm-based-hosted-runners-in-github-actions/
-
 # install compiler
 RUN yum install -y golang wget tar
 RUN go env -w GOPROXY=https://proxy.golang.org
