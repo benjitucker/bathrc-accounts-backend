@@ -1,9 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
 	"flag"
 	"net/http"
 	"os"
@@ -23,22 +20,17 @@ var (
 func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	logger := log.With(logger, "method", "HandleRequest")
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
-	var buf bytes.Buffer
 
-	if req.Path == "/jotform-hook" {
-		body, err := json.Marshal("hookie")
-		if err != nil {
-			return serverError(err)
-		}
-		json.HTMLEscape(&buf, body)
-	} else {
-		return serverError(errors.New("not found"))
+	formData, err := parseBase64Multipart(req.Body)
+	if err != nil {
+		return serverError(err)
 	}
+
+	_ = level.Debug(logger).Log("msg", "Handle Request", "form", formData.DebugString())
 
 	resp := events.APIGatewayProxyResponse{
 		StatusCode:      200,
 		IsBase64Encoded: false,
-		Body:            buf.String(),
 		Headers: map[string]string{
 			"Content-Type": "application/json",
 		},
