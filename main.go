@@ -1,20 +1,23 @@
 package main
 
 import (
+	"benjitucker/bathrc-accounts/db"
+	"context"
 	"flag"
 	"net/http"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
-	logger      log.Logger
-	mongoClient mongo.Client
+	logger log.Logger
+	trainT *db.TrainingSubmissionTable
 )
 
 func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -27,6 +30,17 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	}
 
 	_ = level.Debug(logger).Log("msg", "Handle Request", "form", formData.DebugString())
+
+	err = trainT.Put(&db.TrainingSubmission{
+		DBItem: db.DBItem{
+			ID: formData.SubmissionID,
+		},
+		Date:             formData.RawRequest.SelectSession.Date,
+		MembershipNumber: formData.RawRequest.MembershipNumber,
+	})
+	if err != nil {
+		return serverError(err)
+	}
 
 	resp := events.APIGatewayProxyResponse{
 		StatusCode:      200,
@@ -82,25 +96,19 @@ func main() {
 		_ = level.Error(logger).Log("msg", "bad logging level, defaulting to all")
 	}
 
-	/*
-		uri, exists := os.LookupEnv("MONGO_URI")
-		if !exists {
-			_ = level.Error(logger).Log("You must set your 'MONGO_URI' environment variable")
-			panic(nil)
-		}
-		mongoClient, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
-		if err != nil {
-			panic(err)
-		}
-		defer func() {
-			if err := mongoClient.Disconnect(context.Background()); err != nil {
-				panic(err)
-			}
-		}()
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		_ = level.Error(logger).Log("unable to load AWS config: %v", err)
+		return
+	}
 
-		housing_list.SetMongoClient(mongoClient)
+	ddb := dynamodb.NewFromConfig(cfg)
 
-	*/
+	err = trainT.Open(context.Background(), ddb)
+	if err != nil {
+		_ = level.Error(logger).Log("unable to open training submissions: %v", err)
+		return
+	}
 
 	lambda.Start(HandleRequest)
 }
