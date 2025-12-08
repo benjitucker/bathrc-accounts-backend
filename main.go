@@ -17,7 +17,7 @@ import (
 
 var (
 	logger log.Logger
-	trainT *db.TrainingSubmissionTable
+	trainT db.TrainingSubmissionTable
 )
 
 func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

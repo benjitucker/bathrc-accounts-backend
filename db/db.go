@@ -17,7 +17,7 @@ type dbTable struct {
 }
 
 type DBItem struct {
-	ID string `dynamodbav:"id"`
+	ID string `dynamodbav:"ID"`
 }
 
 func ensureTable(t *dbTable) error {
