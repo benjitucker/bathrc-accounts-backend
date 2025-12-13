@@ -43,6 +43,11 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	}
 
 	records, err := trainT.GetAll()
+	if err != nil {
+		return serverError(err)
+	}
+
+	_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
 	for _, record := range records {
 		_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
 	}
