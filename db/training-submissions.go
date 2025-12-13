@@ -41,5 +41,5 @@ func (t *TrainingSubmissionTable) Get(id string) (*TrainingSubmission, error) {
 }
 
 func (t *TrainingSubmissionTable) GetAll() ([]TrainingSubmission, error) {
-	return queryAllItems[TrainingSubmission](t.t)
+	return scanAllItems[TrainingSubmission](t.t)
 }

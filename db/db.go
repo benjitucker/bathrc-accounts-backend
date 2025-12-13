@@ -100,19 +100,16 @@ func getItem[T any](t *dbTable, id string) (*T, error) {
 	return &out, nil
 }
 
-func queryAllItems[T any](t *dbTable) ([]T, error) {
+// scanAllItems is expensive, it uses up read units
+func scanAllItems[T any](t *dbTable) ([]T, error) {
 
 	var result []T
 
-	input := &dynamodb.QueryInput{
-		TableName:              aws.String(t.tableName),
-		KeyConditionExpression: aws.String("pk = :pk"),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":pk": &types.AttributeValueMemberS{Value: t.pkValue},
-		},
+	input := &dynamodb.ScanInput{
+		TableName: aws.String(t.tableName),
 	}
 
-	paginator := dynamodb.NewQueryPaginator(t.ddb, input)
+	paginator := dynamodb.NewScanPaginator(t.ddb, input)
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(t.ctx)
