@@ -22,6 +22,7 @@ func (t *TrainingSubmissionTable) Open(ctx context.Context, ddb *dynamodb.Client
 	t.t.ctx = ctx
 	t.t.ddb = ddb
 	t.t.tableName = "TrainingSubmissions"
+	t.t.pkValue = "ID"
 	/* Handled by Terraform
 	err := ensureTable(t.t)
 	if err != nil {
@@ -45,4 +46,12 @@ func (t *TrainingSubmissionTable) Get(id string) (*TrainingSubmission, error) {
 		return nil, err
 	}
 	return record, nil
+}
+
+func (t *TrainingSubmissionTable) GetAll() ([]TrainingSubmission, error) {
+	records, err := queryAllItems[TrainingSubmission](t.t)
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }

@@ -14,6 +14,7 @@ type dbTable struct {
 	ctx       context.Context
 	ddb       *dynamodb.Client
 	tableName string
+	pkValue   string
 }
 
 type DBItem struct {
@@ -97,4 +98,35 @@ func getItem[T any](t *dbTable, id string) (*T, error) {
 	}
 
 	return &out, nil
+}
+
+func queryAllItems[T any](t *dbTable) ([]T, error) {
+
+	var result []T
+
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(t.tableName),
+		KeyConditionExpression: aws.String("pk = :pk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: t.pkValue},
+		},
+	}
+
+	paginator := dynamodb.NewQueryPaginator(t.ddb, input)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(t.ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		var pageItems []T
+		if err := attributevalue.UnmarshalListOfMaps(page.Items, &pageItems); err != nil {
+			return nil, err
+		}
+
+		result = append(result, pageItems...)
+	}
+
+	return result, nil
 }

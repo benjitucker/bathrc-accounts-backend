@@ -42,6 +42,11 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 		return serverError(err)
 	}
 
+	records, err := trainT.GetAll()
+	for _, record := range records {
+		_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
+	}
+
 	resp := events.APIGatewayProxyResponse{
 		StatusCode:      200,
 		IsBase64Encoded: false,
