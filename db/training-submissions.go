@@ -33,25 +33,13 @@ func (t *TrainingSubmissionTable) Open(ctx context.Context, ddb *dynamodb.Client
 }
 
 func (t *TrainingSubmissionTable) Put(record *TrainingSubmission) error {
-	err := putItem(t.t, record)
-	if err != nil {
-		return err
-	}
-	return nil
+	return putItem(t.t, record)
 }
 
 func (t *TrainingSubmissionTable) Get(id string) (*TrainingSubmission, error) {
-	record, err := getItem[TrainingSubmission](t.t, id)
-	if err != nil {
-		return nil, err
-	}
-	return record, nil
+	return getItem[TrainingSubmission](t.t, id)
 }
 
 func (t *TrainingSubmissionTable) GetAll() ([]TrainingSubmission, error) {
-	records, err := queryAllItems[TrainingSubmission](t.t)
-	if err != nil {
-		return nil, err
-	}
-	return records, nil
+	return queryAllItems[TrainingSubmission](t.t)
 }
