@@ -52,6 +52,9 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 		_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
 	}
 
+	sendEmail("ben@churchfarmmonktonfarleigh.co.uk", "training booking test",
+		"Hello,\n\nThis is a test email sent via AWS SES\n\nBest regards,\nBath Riding Club")
+
 	resp := events.APIGatewayProxyResponse{
 		StatusCode:      200,
 		IsBase64Encoded: false,
