@@ -15,6 +15,11 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+const (
+	trainingRequestFormId = "252725624662359"
+	trainingAdminFormID   = "253474783695070"
+)
+
 var (
 	logger     log.Logger
 	trainTable db.TrainingSubmissionTable
@@ -33,25 +38,27 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 
 	_ = level.Debug(logger).Log("msg", "Handle Request", "form", formData.DebugString())
 
-	err = trainTable.Put(&db.TrainingSubmission{
-		DBItem: db.DBItem{
-			ID: formData.SubmissionID,
-		},
-		Date:             formData.RawRequest.SelectSession.Date,
-		MembershipNumber: formData.RawRequest.MembershipNumber,
-	})
-	if err != nil {
-		return serverError(err)
-	}
+	if formData.FormID == trainingRequestFormId {
+		err = trainTable.Put(&db.TrainingSubmission{
+			DBItem: db.DBItem{
+				ID: formData.SubmissionID,
+			},
+			Date:             formData.RawRequest.SelectSession.Date,
+			MembershipNumber: formData.RawRequest.MembershipNumber,
+		})
+		if err != nil {
+			return serverError(err)
+		}
 
-	records, err := trainTable.GetAll()
-	if err != nil {
-		return serverError(err)
-	}
+		records, err := trainTable.GetAll()
+		if err != nil {
+			return serverError(err)
+		}
 
-	_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
-	for _, record := range records {
-		_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
+		_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
+		for _, record := range records {
+			_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
+		}
 	}
 
 	resp := events.APIGatewayProxyResponse{
