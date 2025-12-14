@@ -16,13 +16,15 @@ import (
 )
 
 var (
-	logger log.Logger
-	trainT db.TrainingSubmissionTable
+	logger     log.Logger
+	trainTable db.TrainingSubmissionTable
 )
 
 func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	logger := log.With(logger, "method", "HandleRequest")
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
+
+	sendEmail("ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook body", req.Body)
 
 	formData, err := parseBase64Multipart(req.Body)
 	if err != nil {
@@ -31,7 +33,7 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 
 	_ = level.Debug(logger).Log("msg", "Handle Request", "form", formData.DebugString())
 
-	err = trainT.Put(&db.TrainingSubmission{
+	err = trainTable.Put(&db.TrainingSubmission{
 		DBItem: db.DBItem{
 			ID: formData.SubmissionID,
 		},
@@ -42,7 +44,7 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 		return serverError(err)
 	}
 
-	records, err := trainT.GetAll()
+	records, err := trainTable.GetAll()
 	if err != nil {
 		return serverError(err)
 	}
@@ -51,9 +53,6 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	for _, record := range records {
 		_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
 	}
-
-	sendEmail("ben@churchfarmmonktonfarleigh.co.uk", "training booking test",
-		"Hello,\n\nThis is a test email sent via AWS SES\n\nBest regards,\nBath Riding Club")
 
 	resp := events.APIGatewayProxyResponse{
 		StatusCode:      200,
@@ -117,7 +116,7 @@ func main() {
 
 	ddb := dynamodb.NewFromConfig(cfg)
 
-	err = trainT.Open(context.Background(), ddb)
+	err = trainTable.Open(context.Background(), ddb)
 	if err != nil {
 		_ = level.Error(logger).Log("unable to open training submissions: %v", err)
 		return
