@@ -2,8 +2,10 @@ package main
 
 import (
 	"benjitucker/bathrc-accounts/db"
+	"benjitucker/bathrc-accounts/jotform"
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -16,8 +18,8 @@ import (
 )
 
 const (
-	trainingRequestFormId = "252725624662359"
-	trainingAdminFormID   = "253474783695070"
+	trainingRequestForm = "Training"
+	trainingAdminForm   = "Training Administration"
 )
 
 var (
@@ -31,34 +33,24 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 
 	sendEmail("ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook body", req.Body)
 
-	formData, err := parseBase64Multipart(req.Body)
+	formData, err := jotform.DecodeBase64Multipart(req.Body)
 	if err != nil {
 		return serverError(err)
 	}
 
 	_ = level.Debug(logger).Log("msg", "Handle Request", "form", formData.DebugString())
 
-	if formData.FormID == trainingRequestFormId {
-		err = trainTable.Put(&db.TrainingSubmission{
-			DBItem: db.DBItem{
-				ID: formData.SubmissionID,
-			},
-			Date:             formData.RawRequest.SelectSession.Date,
-			MembershipNumber: formData.RawRequest.MembershipNumber,
-		})
-		if err != nil {
-			return serverError(err)
-		}
+	switch formData.RawRequest.FormKind() {
+	case trainingRequestForm:
+		err = handleTrainingRequest(formData, formData.RawRequest.(jotform.TrainingRawRequest))
+	case trainingAdminForm:
+		err = handleTrainingAdmin(formData, formData.RawRequest.(jotform.TrainingAdminRawRequest))
+	default:
+		err = fmt.Errorf("unknown form kind: %s", formData.RawRequest.FormKind())
+	}
 
-		records, err := trainTable.GetAll()
-		if err != nil {
-			return serverError(err)
-		}
-
-		_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
-		for _, record := range records {
-			_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
-		}
+	if err != nil {
+		return serverError(err)
 	}
 
 	resp := events.APIGatewayProxyResponse{
