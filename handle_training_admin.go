@@ -1,33 +1,39 @@
 package main
 
 import (
-	"benjitucker/bathrc-accounts/jotform"
+	"benjitucker/bathrc-accounts/jotform-webhook"
+
+	"github.com/go-kit/log/level"
 )
 
-func handleTrainingAdmin(formData *jotform.FormData, request jotform.TrainingAdminRawRequest) error {
+func handleTrainingAdmin(_ *jotform_webhook.FormData, request jotform_webhook.TrainingAdminRawRequest) error {
 
-	/* TODO
-	err := trainTable.Put(&db.TrainingSubmission{
-		DBItem: db.DBItem{
-			ID: formData.SubmissionID,
-		},
-		Date:             request.SelectSession.Date,
-		MembershipNumber: request.MembershipNumber,
-	})
-	if err != nil {
-		return err
-	}
+	// process just the first uploaded file, there should only be one
+	if len(request.UploadURLs) > 0 {
+		uploadUrl := request.UploadURLs[0]
 
-	records, err := trainTable.GetAll()
-	if err != nil {
-		return err
-	}
+		uploadedCSVData, err := jotformClient.GetSubmissionFile(uploadUrl)
+		if err != nil {
+			return err
+		}
 
-	_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
-	for _, record := range records {
-		_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
+		err = memberTable.PutCSV(uploadedCSVData)
+		if err != nil {
+			return err
+		}
+
+		records, err := memberTable.GetAll()
+		if err != nil {
+			return err
+		}
+
+		_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
+		for _, record := range records {
+			_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
+		}
+	} else {
+		_ = level.Error(logger).Log("msg", "Handle Request, no uploaded files")
 	}
-	*/
 
 	return nil
 }

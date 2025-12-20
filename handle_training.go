@@ -2,12 +2,12 @@ package main
 
 import (
 	"benjitucker/bathrc-accounts/db"
-	"benjitucker/bathrc-accounts/jotform"
+	"benjitucker/bathrc-accounts/jotform-webhook"
 
 	"github.com/go-kit/log/level"
 )
 
-func handleTrainingRequest(formData *jotform.FormData, request jotform.TrainingRawRequest) error {
+func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_webhook.TrainingRawRequest) error {
 
 	err := trainTable.Put(&db.TrainingSubmission{
 		DBItem: db.DBItem{

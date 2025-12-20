@@ -2,6 +2,10 @@ package db
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -126,4 +130,90 @@ func scanAllItems[T any](t *dbTable) ([]T, error) {
 	}
 
 	return result, nil
+}
+
+// updateItem updates a record with exponential backoff on failure
+// It updates an existing item or adds a new one it none exists with the key value
+func updateItem[T any](t *dbTable, record T, id string) error {
+	var err error
+
+	update := func(t *dbTable, record T, id string) error {
+		key := map[string]types.AttributeValue{
+			"ID": &types.AttributeValueMemberS{Value: id},
+		}
+
+		// Convert struct to map[string]AttributeValue
+		avMap, err := attributevalue.MarshalMap(record)
+		if err != nil {
+			return err
+		}
+
+		// Remove key fields from update values to avoid updating the primary key
+		for k := range key {
+			delete(avMap, k)
+		}
+
+		// Build UpdateExpression dynamically
+		var exprParts []string
+		exprValues := make(map[string]types.AttributeValue)
+		exprNames := make(map[string]string)
+
+		for k, v := range avMap {
+			placeholder := ":" + k
+			namePlaceholder := "#" + k
+			exprParts = append(exprParts, fmt.Sprintf("%s = %s", namePlaceholder, placeholder))
+			exprValues[placeholder] = v
+			exprNames[namePlaceholder] = k
+		}
+
+		updateExpr := "SET " + strings.Join(exprParts, ", ")
+
+		input := &dynamodb.UpdateItemInput{
+			TableName:                 aws.String(t.tableName),
+			Key:                       key,
+			UpdateExpression:          aws.String(updateExpr),
+			ExpressionAttributeNames:  exprNames,
+			ExpressionAttributeValues: exprValues,
+			ReturnValues:              types.ReturnValueUpdatedNew,
+		}
+
+		_, err = t.ddb.UpdateItem(t.ctx, input)
+		return err
+	}
+
+	const maxRetries = 5
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		err = update(t, record, id)
+		if err == nil {
+			return nil
+		}
+
+		// Check for throttling error
+		if !isThrottleError(err) {
+			return err
+		}
+
+		// Exponential backoff with jitter
+		backoff := time.Duration(math.Pow(2, float64(attempt))) * 100 * time.Millisecond
+		jitter := time.Duration(float64(backoff) * (0.5 + 0.5*randFloat64()))
+		time.Sleep(jitter)
+	}
+	return fmt.Errorf("failed after %d retries: %w", maxRetries, err)
+}
+
+// randFloat64 returns a random float in [0,1) (simple jitter)
+func randFloat64() float64 {
+	return float64(time.Now().UnixNano()%1000) / 1000
+}
+
+// isThrottleError checks if the error is a throttling error
+func isThrottleError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var throughputErr *types.ProvisionedThroughputExceededException
+	var throttlingErr *types.ThrottlingException
+
+	return errors.As(err, &throughputErr) || errors.As(err, &throttlingErr)
 }

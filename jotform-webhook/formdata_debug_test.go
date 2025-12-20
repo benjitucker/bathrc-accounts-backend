@@ -1,4 +1,4 @@
-package jotform
+package jotform_webhook
 
 import (
 	"strings"

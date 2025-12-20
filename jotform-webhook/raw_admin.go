@@ -1,4 +1,4 @@
-package jotform
+package jotform_webhook
 
 type TempUpload struct {
 	UploadStatement []string `json:"q4_uploadStatement"`
