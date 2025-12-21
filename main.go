@@ -39,8 +39,6 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	logger := log.With(logger, "method", "HandleRequest")
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
 
-	sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook body", req.Body)
-
 	formData, err := jotform_webhook.DecodeBase64Multipart(req.Body)
 	if err != nil {
 		return serverError(err)
