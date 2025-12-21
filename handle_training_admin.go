@@ -11,6 +11,7 @@ func handleTrainingAdmin(_ *jotform_webhook.FormData, request jotform_webhook.Tr
 	// process just the first uploaded file, there should only be one
 	if len(request.UploadURLs) > 0 {
 		uploadUrl := request.UploadURLs[0]
+		uploadUrl = "https://www.example.com" // TODO remove
 
 		uploadedCSVData, err := jotformClient.GetSubmissionFile(uploadUrl)
 		if err != nil {
