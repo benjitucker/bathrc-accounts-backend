@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.27
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.53.3
 	github.com/aws/aws-sdk-go-v2/service/ses v1.34.17
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.67.7
 	github.com/go-kit/log v0.2.1
 )
 

@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -31,6 +32,7 @@ var (
 	memberTable   db.MemberTable
 	jotformClient *jotform.APIClient
 	sesClient     *ses.Client
+	ssmClient     *ssm.Client
 )
 
 func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -122,6 +124,7 @@ func main() {
 
 	ddb := dynamodb.NewFromConfig(cfg)
 	sesClient = ses.NewFromConfig(cfg)
+	ssmClient = ssm.NewFromConfig(cfg)
 
 	// TODO - do not open everything if you dont need to
 
@@ -137,11 +140,19 @@ func main() {
 		return
 	}
 
-	jotformApiKey, exists := os.LookupEnv("JOTFORM_API_KEY")
-	if !exists {
-		_ = level.Error(logger).Log("no jotform API key")
+	// Get jotform api key from secret ssm parameter
+	paramName := "bathrc-jotform-apikey"
+	withDecryption := true
+	resp, err := ssmClient.GetParameter(ctx, &ssm.GetParameterInput{
+		Name:           &paramName,
+		WithDecryption: &withDecryption,
+	})
+	if err != nil {
+		_ = level.Error(logger).Log("failed to get parameter: %v", err)
 		return
 	}
+	jotformApiKey := *resp.Parameter.Value
+
 	jotformClient = jotform.NewJotFormAPIClient(jotformApiKey, "json", logLevel == "debug")
 
 	lambda.Start(HandleRequest)
