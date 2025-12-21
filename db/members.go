@@ -59,7 +59,7 @@ func (t *MemberTable) Open(ctx context.Context, ddb *dynamodb.Client) error {
 	t.t = new(dbTable)
 	t.t.ctx = ctx
 	t.t.ddb = ddb
-	t.t.tableName = "TrainingSubmissions"
+	t.t.tableName = "Members"
 	t.t.pkValue = "ID"
 	/* Handled by Terraform
 	err := ensureTable(t.t)
