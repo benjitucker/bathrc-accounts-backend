@@ -28,6 +28,29 @@ type MemberRecord struct {
 	MembershipType       string     `dynamodbav:"membershipType"`
 }
 
+func (m MemberRecord) String() string {
+	formatDate := func(t *time.Time) string {
+		if t == nil {
+			return "<nil>"
+		}
+		return t.Format("2006-01-02")
+	}
+
+	return fmt.Sprintf(
+		"MemberRecord{FirstName=%q, LastName=%q, DOB=%s, SexAtBirth=%q, Email=%q, MemberNumber=%q, Status=%q, ValidFrom=%s, ValidTo=%s, MembershipType=%q}",
+		m.FirstName,
+		m.LastName,
+		formatDate(m.DateOfBirth),
+		m.SexAtBirth,
+		m.Email,
+		m.MemberNumber,
+		m.ClubMembershipStatus,
+		formatDate(m.MembershipValidFrom),
+		formatDate(m.MembershipValidTo),
+		m.MembershipType,
+	)
+}
+
 type MemberTable struct {
 	t *dbTable
 }
