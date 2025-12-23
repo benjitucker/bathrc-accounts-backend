@@ -14,11 +14,11 @@ import (
 
 type TransactionRecord struct {
 	DBItem
-	Date         time.Time `dynamodbav:"date"`
-	Type         string    `dynamodbav:"type"`
-	Description  string    `dynamodbav:"description"`
-	AmountPence  int64     `dynamodbav:"amount"`
-	BalancePence int64     `dynamodbav:"balance"`
+	Date         time.Time `dynamodbav:"txn_date"`
+	Type         string    `dynamodbav:"txn_type"`
+	Description  string    `dynamodbav:"txn_description"`
+	AmountPence  int64     `dynamodbav:"txn_amount"`
+	BalancePence int64     `dynamodbav:"txn_balance"`
 }
 
 func (t TransactionRecord) String() string {
@@ -92,7 +92,7 @@ func (t *TransactionTable) GetAllOfTypeRecent(txnType string, startDate time.Tim
 		IndexName: aws.String("TypeDateIndex"),
 
 		KeyConditionExpression: aws.String(
-			"Type = :txnType AND Date >= :startDate",
+			"txn_type = :txnType AND txn_date >= :startDate",
 		),
 
 		ExpressionAttributeValues: map[string]types.AttributeValue{
