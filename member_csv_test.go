@@ -25,7 +25,7 @@ func TestParseMembersCSV(t *testing.T) {
 	if first.FirstName != "Alice" || first.LastName != "Test" {
 		t.Errorf("unexpected first member name: %s %s", first.FirstName, first.LastName)
 	}
-	if first.DateOfBirth == nil || first.DateOfBirth.Format("2006-01-23") != "1987-01-23" {
+	if first.DateOfBirth == nil || first.DateOfBirth.Format("2006-01-02") != "1987-01-23" {
 		t.Errorf("unexpected DOB: %v", first.DateOfBirth)
 	}
 	if first.MembershipValidTo == nil || first.MembershipValidTo.Format("2006-01-02") != "2026-06-13" {
