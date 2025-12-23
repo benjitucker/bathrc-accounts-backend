@@ -51,10 +51,10 @@ func ensureTable(t *dbTable) error {
 	_, err = t.ddb.CreateTable(t.ctx, &dynamodb.CreateTableInput{
 		TableName: aws.String(t.tableName),
 		AttributeDefinitions: []types.AttributeDefinition{
-			{AttributeName: aws.String("id"), AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: aws.String("ID"), AttributeType: types.ScalarAttributeTypeS},
 		},
 		KeySchema: []types.KeySchemaElement{
-			{AttributeName: aws.String("id"), KeyType: types.KeyTypeHash},
+			{AttributeName: aws.String("ID"), KeyType: types.KeyTypeHash},
 		},
 		BillingMode: types.BillingModePayPerRequest,
 	})
@@ -90,7 +90,7 @@ func getItem[T dbItemIf](t *dbTable, id string) (T, error) {
 
 	// Marshal the key for the GetItem request
 	key, err := attributevalue.MarshalMap(map[string]string{
-		"id": id,
+		"ID": id,
 	})
 	if err != nil {
 		return out, nil
@@ -154,7 +154,7 @@ func updateItem[T dbItemIf](t *dbTable, record *T) error {
 
 	update := func(t *dbTable, record *T, id string) error {
 		key := map[string]types.AttributeValue{
-			"id": &types.AttributeValueMemberS{Value: id},
+			"ID": &types.AttributeValueMemberS{Value: id},
 		}
 
 		// Convert struct to map[string]AttributeValue
