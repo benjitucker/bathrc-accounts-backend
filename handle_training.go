@@ -19,6 +19,13 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		return err
 	}
 
+	// TODO:
+	// Check membership number
+	// email me on invalid membership number incase its a new member
+	// check that the membership is current, and flag inconsistency with the form data with member
+	// check that a training request for the same date/time has not already been received
+	// email member to confirm that their training request has been received, pending payment
+
 	records, err := trainTable.GetAll()
 	if err != nil {
 		return err
