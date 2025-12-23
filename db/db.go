@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -21,8 +23,16 @@ type dbTable struct {
 	pkValue   string
 }
 
+type dbItemIf interface {
+	GetID() string
+}
+
 type DBItem struct {
 	ID string `dynamodbav:"ID"`
+}
+
+func (i DBItem) GetID() string {
+	return i.ID
 }
 
 func ensureTable(t *dbTable) error {
@@ -68,7 +78,7 @@ func putItem(t *dbTable, record any) error {
 
 // getItem retrieves an item by ID and unmarshals it into the generic type T.
 // T must be a struct or pointer to a struct compatible with attributevalue.UnmarshalMap.
-func getItem[T any](t *dbTable, id string) (*T, error) {
+func getItem[T dbItemIf](t *dbTable, id string) (*T, error) {
 
 	// Marshal the key for the GetItem request
 	key, err := attributevalue.MarshalMap(map[string]string{
@@ -105,7 +115,7 @@ func getItem[T any](t *dbTable, id string) (*T, error) {
 }
 
 // scanAllItems is expensive, it uses up read units
-func scanAllItems[T any](t *dbTable) ([]T, error) {
+func scanAllItems[T dbItemIf](t *dbTable) ([]T, error) {
 
 	var result []T
 
@@ -134,10 +144,10 @@ func scanAllItems[T any](t *dbTable) ([]T, error) {
 
 // updateItem updates a record with exponential backoff on failure
 // It updates an existing item or adds a new one it none exists with the key value
-func updateItem[T any](t *dbTable, record T, id string) error {
+func updateItem[T dbItemIf](t *dbTable, record *T) error {
 	var err error
 
-	update := func(t *dbTable, record T, id string) error {
+	update := func(t *dbTable, record *T, id string) error {
 		key := map[string]types.AttributeValue{
 			"ID": &types.AttributeValueMemberS{Value: id},
 		}
@@ -183,7 +193,7 @@ func updateItem[T any](t *dbTable, record T, id string) error {
 
 	const maxRetries = 5
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		err = update(t, record, id)
+		err = update(t, record, (*record).GetID())
 		if err == nil {
 			return nil
 		}
@@ -216,4 +226,44 @@ func isThrottleError(err error) bool {
 	var throttlingErr *types.ThrottlingException
 
 	return errors.As(err, &throughputErr) || errors.As(err, &throttlingErr)
+}
+
+func updateAllItems[T dbItemIf](t *dbTable, records []T) error {
+
+	const maxParallel = 20
+
+	jobs := make(chan *T)
+	var wg sync.WaitGroup
+
+	for i := 0; i < maxParallel; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case record, ok := <-jobs:
+					if !ok {
+						return
+					}
+					if err := updateItem(t, record); err != nil {
+						log.Printf("Failed to update record %v: %v", (*record).GetID(), err)
+					} else {
+						log.Printf("Updated record %v successfully", (*record).GetID())
+					}
+
+				case <-t.ctx.Done():
+					return
+				}
+			}
+		}()
+	}
+
+	for _, record := range records {
+		jobs <- &record
+	}
+	close(jobs)
+
+	wg.Wait()
+
+	return nil
 }
