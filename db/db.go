@@ -119,6 +119,25 @@ func getItem[T dbItemIf](t *dbTable, id string) (T, error) {
 	return out, nil
 }
 
+func queryItems[T dbItemIf](t *dbTable, query *dynamodb.QueryInput) ([]T, error) {
+	var result []T
+	paginator := dynamodb.NewQueryPaginator(t.ddb, query)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(t.ctx)
+		if err != nil {
+			return result, err
+		}
+
+		var pageItems []T
+		if err := attributevalue.UnmarshalListOfMaps(page.Items, &pageItems); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
 // scanAllItems is expensive, it uses up read units
 func scanAllItems[T dbItemIf](t *dbTable) ([]T, error) {
 

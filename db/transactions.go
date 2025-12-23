@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 type TransactionRecord struct {
@@ -80,6 +82,33 @@ func (t *TransactionTable) Put(record *TransactionRecord) error {
 
 func (t *TransactionTable) Get(id string) (*TransactionRecord, error) {
 	return getItem[*TransactionRecord](t.t, id)
+}
+
+func (t *TransactionTable) GetAllOfTypeRecent(txnType string, startDate time.Time) ([]*TransactionRecord, error) {
+	startDateStr := startDate.Format(time.RFC3339)
+
+	query := &dynamodb.QueryInput{
+		TableName: aws.String(t.t.tableName),
+		IndexName: aws.String("TypeDateIndex"),
+
+		KeyConditionExpression: aws.String(
+			"Type = :txnType AND Date >= :startDate",
+		),
+
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":txnType": &types.AttributeValueMemberS{
+				Value: txnType,
+			},
+			":startDate": &types.AttributeValueMemberS{
+				Value: startDateStr,
+			},
+		},
+
+		// sort ascending
+		//ScanIndexForward: aws.Bool(true),
+	}
+
+	return queryItems[*TransactionRecord](t.t, query)
 }
 
 func (t *TransactionTable) GetAll() ([]*TransactionRecord, error) {

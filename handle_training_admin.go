@@ -5,6 +5,7 @@ import (
 	"benjitucker/bathrc-accounts/jotform-webhook"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/go-kit/log/level"
 )
@@ -65,6 +66,9 @@ func handleMembers(records []*db.MemberRecord) error {
 		}
 	*/
 
+	// TODO:
+	// Work out which member training confirmations email have not been sent and send them
+
 	sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: Training Admin",
 		fmt.Sprintf("Uploaded member table. Currently holding %d members\n", len(records)))
 
@@ -79,6 +83,20 @@ func handleTransactions(records []*db.TransactionRecord) error {
 	}
 
 	_ = level.Debug(logger).Log("msg", "Handle Request", "added/updated transactions", len(records))
+
+	// TODO:
+	// Match received payments for training sessions and email members confirmation of received payment
+	// if they have not already been sent
+
+	// TODO : remove this test code
+	records, err = transactionTable.GetAllOfTypeRecent("CR", time.Now().Add(time.Hour*-24))
+	if err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		_ = level.Debug(logger).Log("msg", "Handle Request", "record in the last 24 hours from db", record)
+	}
 
 	sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: Training Admin",
 		fmt.Sprintf("Uploaded %d transactions\n", len(records)))
