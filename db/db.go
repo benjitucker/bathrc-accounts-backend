@@ -29,7 +29,7 @@ type dbItemIf interface {
 }
 
 type DBItem struct {
-	id string `dynamodbav:"id"`
+	id string `dynamodbav:"ID"`
 }
 
 func (i DBItem) GetID() string {
