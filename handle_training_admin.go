@@ -47,7 +47,7 @@ func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook
 	return err
 }
 
-func handleMembers(records []db.MemberRecord) error {
+func handleMembers(records []*db.MemberRecord) error {
 	err := memberTable.PutAll(records)
 	if err != nil {
 		return err
@@ -71,7 +71,7 @@ func handleMembers(records []db.MemberRecord) error {
 	return nil
 }
 
-func handleTransactions(records []db.TransactionRecord) error {
+func handleTransactions(records []*db.TransactionRecord) error {
 
 	err := transactionTable.PutAll(records)
 	if err != nil {

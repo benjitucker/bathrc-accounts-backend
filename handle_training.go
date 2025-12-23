@@ -9,13 +9,12 @@ import (
 
 func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_webhook.TrainingRawRequest) error {
 
-	err := trainTable.Put(&db.TrainingSubmission{
-		DBItem: db.DBItem{
-			ID: formData.SubmissionID,
-		},
+	submission := db.TrainingSubmission{
 		Date:             request.SelectSession.Date,
 		MembershipNumber: request.MembershipNumber,
-	})
+	}
+
+	err := trainTable.Put(&submission, formData.SubmissionID)
 	if err != nil {
 		return err
 	}

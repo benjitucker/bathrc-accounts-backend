@@ -74,23 +74,24 @@ func (t *TransactionTable) Open(ctx context.Context, ddb *dynamodb.Client) error
 }
 
 func (t *TransactionTable) Put(record *TransactionRecord) error {
+	record.SetID(record.Hash())
 	return putItem(t.t, record)
 }
 
 func (t *TransactionTable) Get(id string) (*TransactionRecord, error) {
-	return getItem[TransactionRecord](t.t, id)
+	return getItem[*TransactionRecord](t.t, id)
 }
 
-func (t *TransactionTable) GetAll() ([]TransactionRecord, error) {
-	return scanAllItems[TransactionRecord](t.t)
+func (t *TransactionTable) GetAll() ([]*TransactionRecord, error) {
+	return scanAllItems[*TransactionRecord](t.t)
 }
 
-func (t *TransactionTable) PutAll(records []TransactionRecord) error {
+func (t *TransactionTable) PutAll(records []*TransactionRecord) error {
 
-	// the record ID is its hash
+	// the record id is its hash
 	for _, record := range records {
-		record.ID = record.Hash()
+		record.SetID(record.Hash())
 	}
 
-	return updateAllItems[TransactionRecord](t.t, records)
+	return updateAllItems[*TransactionRecord](t.t, records)
 }

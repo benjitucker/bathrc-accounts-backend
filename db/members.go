@@ -65,23 +65,24 @@ func (t *MemberTable) Open(ctx context.Context, ddb *dynamodb.Client) error {
 }
 
 func (t *MemberTable) Put(record *MemberRecord) error {
+	record.SetID(record.MemberNumber)
 	return putItem(t.t, record)
 }
 
 func (t *MemberTable) Get(id string) (*MemberRecord, error) {
-	return getItem[MemberRecord](t.t, id)
+	return getItem[*MemberRecord](t.t, id)
 }
 
-func (t *MemberTable) GetAll() ([]MemberRecord, error) {
-	return scanAllItems[MemberRecord](t.t)
+func (t *MemberTable) GetAll() ([]*MemberRecord, error) {
+	return scanAllItems[*MemberRecord](t.t)
 }
 
-func (t *MemberTable) PutAll(records []MemberRecord) error {
+func (t *MemberTable) PutAll(records []*MemberRecord) error {
 
-	// the record ID is the member number
+	// the record id is the member number
 	for _, record := range records {
-		record.ID = record.MemberNumber
+		record.SetID(record.MemberNumber)
 	}
 
-	return updateAllItems[MemberRecord](t.t, records)
+	return updateAllItems(t.t, records)
 }

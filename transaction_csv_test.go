@@ -41,7 +41,7 @@ func TestParseCSV(t *testing.T) {
 		t.Fatalf("parseCSV returned error: %v", err)
 	}
 
-	expected := []db.TransactionRecord{
+	expected := []*db.TransactionRecord{
 		{
 			Date:         mustParseDate("22 Dec 2025"),
 			Type:         "CR",

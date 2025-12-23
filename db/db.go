@@ -25,14 +25,19 @@ type dbTable struct {
 
 type dbItemIf interface {
 	GetID() string
+	SetID(string)
 }
 
 type DBItem struct {
-	ID string `dynamodbav:"ID"`
+	id string `dynamodbav:"id"`
 }
 
 func (i DBItem) GetID() string {
-	return i.ID
+	return i.id
+}
+
+func (i *DBItem) SetID(id string) {
+	i.id = id
 }
 
 func ensureTable(t *dbTable) error {
@@ -63,7 +68,7 @@ func ensureTable(t *dbTable) error {
 	}, 5*time.Minute)
 }
 
-func putItem(t *dbTable, record any) error {
+func putItem[T dbItemIf](t *dbTable, record T) error {
 	item, err := attributevalue.MarshalMap(record)
 	if err != nil {
 		return err
@@ -76,16 +81,19 @@ func putItem(t *dbTable, record any) error {
 	return err
 }
 
-// getItem retrieves an item by ID and unmarshals it into the generic type T.
+// getItem retrieves an item by id and unmarshals it into the generic type T.
 // T must be a struct or pointer to a struct compatible with attributevalue.UnmarshalMap.
-func getItem[T dbItemIf](t *dbTable, id string) (*T, error) {
+func getItem[T dbItemIf](t *dbTable, id string) (T, error) {
+
+	// Create a zero value of T
+	var out T
 
 	// Marshal the key for the GetItem request
 	key, err := attributevalue.MarshalMap(map[string]string{
 		"id": id,
 	})
 	if err != nil {
-		return nil, err
+		return out, nil
 	}
 
 	// Fetch the item
@@ -94,24 +102,21 @@ func getItem[T dbItemIf](t *dbTable, id string) (*T, error) {
 		Key:       key,
 	})
 	if err != nil {
-		return nil, err
+		return out, err
 	}
 
 	// No item found
 	if res.Item == nil {
-		return nil, nil
+		return out, nil
 	}
-
-	// Create a zero value of T
-	var out T
 
 	// Unmarshal DynamoDB item into T
 	err = attributevalue.UnmarshalMap(res.Item, &out)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
 
-	return &out, nil
+	return out, nil
 }
 
 // scanAllItems is expensive, it uses up read units
@@ -149,7 +154,7 @@ func updateItem[T dbItemIf](t *dbTable, record *T) error {
 
 	update := func(t *dbTable, record *T, id string) error {
 		key := map[string]types.AttributeValue{
-			"ID": &types.AttributeValueMemberS{Value: id},
+			"id": &types.AttributeValueMemberS{Value: id},
 		}
 
 		// Convert struct to map[string]AttributeValue

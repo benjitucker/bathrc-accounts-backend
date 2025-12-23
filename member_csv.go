@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func parseMembersCSV(data []byte) ([]db.MemberRecord, error) {
+func parseMembersCSV(data []byte) ([]*db.MemberRecord, error) {
 	reader := csv.NewReader(bytes.NewReader(data))
 	reader.TrimLeadingSpace = true
 	reader.FieldsPerRecord = -1 // allow variable columns
@@ -26,7 +26,7 @@ func parseMembersCSV(data []byte) ([]db.MemberRecord, error) {
 		headerIndex[strings.Trim(h, `"`)] = i
 	}
 
-	var records []db.MemberRecord
+	var records []*db.MemberRecord
 
 	for {
 		row, err := reader.Read()
@@ -64,7 +64,7 @@ func parseMembersCSV(data []byte) ([]db.MemberRecord, error) {
 			record.MembershipValidTo = to
 		}
 
-		records = append(records, record)
+		records = append(records, &record)
 	}
 
 	return records, nil

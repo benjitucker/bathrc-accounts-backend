@@ -48,7 +48,7 @@ func parsePence(s string) (int64, error) {
 	return total, nil
 }
 
-func parseTransactionsCSV(csvData []byte) ([]db.TransactionRecord, error) {
+func parseTransactionsCSV(csvData []byte) ([]*db.TransactionRecord, error) {
 	r := csv.NewReader(bytes.NewReader(csvData))
 	r.TrimLeadingSpace = true
 
@@ -57,7 +57,7 @@ func parseTransactionsCSV(csvData []byte) ([]db.TransactionRecord, error) {
 		return nil, err
 	}
 
-	var transactions []db.TransactionRecord
+	var transactions []*db.TransactionRecord
 
 	for {
 		record, err := r.Read()
@@ -83,7 +83,7 @@ func parseTransactionsCSV(csvData []byte) ([]db.TransactionRecord, error) {
 			return nil, fmt.Errorf("invalid balance %q: %w", record[4], err)
 		}
 
-		transactions = append(transactions, db.TransactionRecord{
+		transactions = append(transactions, &db.TransactionRecord{
 			Date:         date,
 			Type:         record[1],
 			Description:  record[2],
