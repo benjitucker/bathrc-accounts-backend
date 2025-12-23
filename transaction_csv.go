@@ -1,0 +1,96 @@
+package main
+
+import (
+	"benjitucker/bathrc-accounts/db"
+	"bytes"
+	"encoding/csv"
+	"fmt"
+	"io"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// parsePence converts a string like "20.00" or "-10.01" to int64 pence
+func parsePence(s string) (int64, error) {
+	negative := false
+	if strings.HasPrefix(s, "-") {
+		negative = true
+		s = s[1:]
+	}
+
+	parts := strings.SplitN(s, ".", 3)
+
+	pounds, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	var pence int64
+	if len(parts) == 2 {
+		switch len(parts[1]) {
+		case 1:
+			pence, err = strconv.ParseInt(parts[1]+"0", 10, 64)
+		case 2:
+			pence, err = strconv.ParseInt(parts[1], 10, 64)
+		default:
+			return 0, fmt.Errorf("invalid pence value: %q", s)
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	total := pounds*100 + pence
+	if negative {
+		total = -total
+	}
+	return total, nil
+}
+
+func parseTransactionsCSV(csvData []byte) ([]db.TransactionRecord, error) {
+	r := csv.NewReader(bytes.NewReader(csvData))
+	r.TrimLeadingSpace = true
+
+	// Read header
+	if _, err := r.Read(); err != nil {
+		return nil, err
+	}
+
+	var transactions []db.TransactionRecord
+
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		date, err := time.Parse("02 Jan 2006", record[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid date %q: %w", record[0], err)
+		}
+
+		amount, err := parsePence(record[3])
+		if err != nil {
+			return nil, fmt.Errorf("invalid amount %q: %w", record[3], err)
+		}
+
+		balance, err := parsePence(record[4])
+		if err != nil {
+			return nil, fmt.Errorf("invalid balance %q: %w", record[4], err)
+		}
+
+		transactions = append(transactions, db.TransactionRecord{
+			Date:         date,
+			Type:         record[1],
+			Description:  record[2],
+			AmountPence:  amount,
+			BalancePence: balance,
+		})
+	}
+
+	return transactions, nil
+}

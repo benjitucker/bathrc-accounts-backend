@@ -26,13 +26,14 @@ const (
 )
 
 var (
-	ctx           context.Context
-	logger        log.Logger
-	trainTable    db.TrainingSubmissionTable
-	memberTable   db.MemberTable
-	jotformClient *jotform.APIClient
-	sesClient     *ses.Client
-	ssmClient     *ssm.Client
+	ctx              context.Context
+	logger           log.Logger
+	trainTable       db.TrainingSubmissionTable
+	memberTable      db.MemberTable
+	transactionTable db.TransactionTable
+	jotformClient    *jotform.APIClient
+	sesClient        *ses.Client
+	ssmClient        *ssm.Client
 )
 
 func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -56,6 +57,7 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	}
 
 	if err != nil {
+		sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: FAIL", err.Error())
 		return serverError(err)
 	}
 
@@ -135,6 +137,12 @@ func main() {
 	err = memberTable.Open(ctx, ddb)
 	if err != nil {
 		_ = level.Error(logger).Log("unable to open members table: %v", err)
+		return
+	}
+
+	err = transactionTable.Open(ctx, ddb)
+	if err != nil {
+		_ = level.Error(logger).Log("unable to open transaction table: %v", err)
 		return
 	}
 

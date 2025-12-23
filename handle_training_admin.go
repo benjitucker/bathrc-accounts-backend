@@ -3,130 +3,85 @@ package main
 import (
 	"benjitucker/bathrc-accounts/db"
 	"benjitucker/bathrc-accounts/jotform-webhook"
-	"bytes"
-	"encoding/csv"
+	"errors"
 	"fmt"
-	"io"
-	"strings"
-	"time"
 
 	"github.com/go-kit/log/level"
 )
 
-func handleTrainingAdmin(_ *jotform_webhook.FormData, request jotform_webhook.TrainingAdminRawRequest) error {
+func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook.TrainingAdminRawRequest) error {
 
-	numberOfMembers := 0
+	var errs []error
+	var err error
 
 	// process just the first uploaded file, there should only be one
-	if len(request.UploadURLs) > 0 {
-		uploadUrl := request.UploadURLs[0]
-
-		uploadedCSVData, err := jotformClient.GetSubmissionFile(uploadUrl)
-		if err != nil {
-			return err
-		}
-
-		records, err := parseMembersCSV(uploadedCSVData)
-		if err != nil {
-			return err
-		}
-
-		err = memberTable.PutAll(records)
-		if err != nil {
-			return err
-		}
-
-		records, err = memberTable.GetAll()
-		if err != nil {
-			return err
-		}
-		numberOfMembers = len(records)
-
-		_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
-		/*
-			for _, record := range records {
-				_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
-			}
-		*/
-	} else {
-		_ = level.Error(logger).Log("msg", "Handle Request, no uploaded files")
+	if len(request.UploadURLs) == 0 {
+		err = fmt.Errorf("no uploaded files for form %v", form.DebugString())
+		_ = level.Warn(logger).Log("msg", "nothing to do", "err", err)
+		return err
 	}
 
+	uploadUrl := request.UploadURLs[0]
+
+	uploadedCSVData, err := jotformClient.GetSubmissionFile(uploadUrl)
+	if err != nil {
+		_ = level.Warn(logger).Log("msg", "failed getting submission file", "err", err)
+		return err
+	}
+
+	transactions, err := parseTransactionsCSV(uploadedCSVData)
+	if err == nil {
+		return handleTransactions(transactions)
+	}
+	_ = level.Warn(logger).Log("msg", "transactions parse", "err", err)
+	errs = append(errs, err)
+
+	members, err := parseMembersCSV(uploadedCSVData)
+	if err == nil {
+		return handleMembers(members)
+	}
+	errs = append(errs, err)
+
+	err = errors.Join(errs...)
+	_ = level.Warn(logger).Log("msg", "handle admin", "err", err)
+	return err
+}
+
+func handleMembers(records []db.MemberRecord) error {
+	err := memberTable.PutAll(records)
+	if err != nil {
+		return err
+	}
+
+	records, err = memberTable.GetAll()
+	if err != nil {
+		return err
+	}
+
+	_ = level.Debug(logger).Log("msg", "Handle Request", "total members now", len(records))
+	/*
+		for _, record := range records {
+			_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
+		}
+	*/
+
 	sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: Training Admin",
-		fmt.Sprintf("Uploaded member table. Currently holding %d members\n", numberOfMembers))
+		fmt.Sprintf("Uploaded member table. Currently holding %d members\n", len(records)))
 
 	return nil
 }
 
-func parseMembersCSV(data []byte) ([]db.MemberRecord, error) {
-	reader := csv.NewReader(bytes.NewReader(data))
-	reader.TrimLeadingSpace = true
-	reader.FieldsPerRecord = -1 // allow variable columns
+func handleTransactions(records []db.TransactionRecord) error {
 
-	// Read header row
-	headers, err := reader.Read()
+	err := transactionTable.PutAll(records)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read CSV header: %w", err)
+		return err
 	}
 
-	headerIndex := make(map[string]int)
-	for i, h := range headers {
-		headerIndex[strings.Trim(h, `"`)] = i
-	}
+	_ = level.Debug(logger).Log("msg", "Handle Request", "added/updated transactions", len(records))
 
-	var records []db.MemberRecord
+	sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: Training Admin",
+		fmt.Sprintf("Uploaded %d transactions\n", len(records)))
 
-	for {
-		row, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to read CSV row: %w", err)
-		}
-
-		get := func(name string) string {
-			if idx, ok := headerIndex[name]; ok && idx < len(row) {
-				return strings.TrimSpace(row[idx])
-			}
-			return ""
-		}
-
-		record := db.MemberRecord{
-			FirstName:            get("First Name"),
-			LastName:             get("Last Name"),
-			SexAtBirth:           get("Sex at Birth"),
-			Email:                get("Email Address"),
-			MemberNumber:         get("Individual Membership Member No."),
-			ClubMembershipStatus: get("BATH RIDING CLUB Membership Status"),
-			MembershipType:       get("BATH RIDING CLUB Membership Membership Type"),
-		}
-
-		if dob := parseDate(get("Date of Birth")); dob != nil {
-			record.DateOfBirth = dob
-		}
-		if from := parseDate(get("BATH RIDING CLUB Membership Valid From")); from != nil {
-			record.MembershipValidFrom = from
-		}
-		if to := parseDate(get("BATH RIDING CLUB Membership Valid To")); to != nil {
-			record.MembershipValidTo = to
-		}
-
-		records = append(records, record)
-	}
-
-	return records, nil
-}
-
-const dateLayout = "2006-01-02"
-
-func parseDate(value string) *time.Time {
-	if value == "" {
-		return nil
-	}
-	t, err := time.Parse(dateLayout, value)
-	if err != nil {
-		return nil
-	}
-	return &t
+	return nil
 }
