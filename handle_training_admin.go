@@ -95,11 +95,11 @@ func handleTransactions(records []*db.TransactionRecord) error {
 	}
 
 	for _, record := range records {
-		_ = level.Debug(logger).Log("msg", "Handle Request", "record in the last 24 hours from db", record)
+		_ = level.Debug(logger).Log("msg", "Handle Request", "record in the last 72 hours from db", record)
 	}
 
 	sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: Training Admin",
-		fmt.Sprintf("Uploaded %d transactions\n", len(records)))
+		fmt.Sprintf("Found %d CR transactions in the last 72 hours\n", len(records)))
 
 	return nil
 }
