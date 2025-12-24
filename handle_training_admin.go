@@ -89,7 +89,7 @@ func handleTransactions(records []*db.TransactionRecord) error {
 	// if they have not already been sent
 
 	// TODO : remove this test code
-	records, err = transactionTable.GetAllOfTypeRecent("CR", time.Now().Add(time.Hour*-24))
+	records, err = transactionTable.GetAllOfTypeRecent("CR", time.Now().Add(time.Hour*-72))
 	if err != nil {
 		return err
 	}
