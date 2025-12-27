@@ -11,6 +11,7 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 
 	submission := db.TrainingSubmission{
 		Date:             request.SelectSession.Date,
+		DateUnix:         request.SelectSession.Date.Unix(),
 		MembershipNumber: request.MembershipNumber,
 	}
 
