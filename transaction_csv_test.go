@@ -44,15 +44,21 @@ func TestParseCSV(t *testing.T) {
 	expected := []*db.TransactionRecord{
 		{
 			Date:         mustParseDate("22 Dec 2025"),
+			DateUnix:     mustParseDateUnix("22 Dec 2025"),
 			Type:         "CR",
-			Description:  "FOG BA BOB FOG",
+			Description:  "BOB FOG",
+			FirstName:    "FOG",
+			LastName:     "BA",
 			AmountPence:  2000,
 			BalancePence: 1314119,
 		},
 		{
 			Date:         mustParseDate("22 Dec 2025"),
+			DateUnix:     mustParseDateUnix("22 Dec 2025"),
 			Type:         "CR",
-			Description:  "Spot Payments",
+			Description:  "",
+			FirstName:    "Spot",
+			LastName:     "Payments",
 			AmountPence:  -1001,
 			BalancePence: 1312119,
 		},
@@ -70,4 +76,7 @@ func mustParseDate(s string) time.Time {
 		panic(err)
 	}
 	return d
+}
+func mustParseDateUnix(s string) int64 {
+	return mustParseDate(s).Unix()
 }

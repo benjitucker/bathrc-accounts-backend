@@ -48,6 +48,20 @@ func parsePence(s string) (int64, error) {
 	return total, nil
 }
 
+// splitDescription extracts first/last name and returns remaining text
+func splitDescription(s string) (first, last, rest string) {
+	fields := strings.Fields(s)
+
+	switch len(fields) {
+	case 0:
+		return "", "", ""
+	case 1:
+		return fields[0], "", ""
+	default:
+		return fields[0], fields[1], strings.Join(fields[2:], " ")
+	}
+}
+
 func parseTransactionsCSV(csvData []byte) ([]*db.TransactionRecord, error) {
 	r := csv.NewReader(bytes.NewReader(csvData))
 	r.TrimLeadingSpace = true
@@ -83,10 +97,15 @@ func parseTransactionsCSV(csvData []byte) ([]*db.TransactionRecord, error) {
 			return nil, fmt.Errorf("invalid balance %q: %w", record[4], err)
 		}
 
+		first, last, remainder := splitDescription(record[2])
+
 		transactions = append(transactions, &db.TransactionRecord{
 			Date:         date,
+			DateUnix:     date.Unix(),
 			Type:         record[1],
-			Description:  record[2],
+			Description:  remainder,
+			FirstName:    first,
+			LastName:     last,
 			AmountPence:  amount,
 			BalancePence: balance,
 		})
