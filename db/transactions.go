@@ -115,6 +115,8 @@ func (t *TransactionTable) GetAllOfTypeRecent(txnType string, startDate time.Tim
 		//ScanIndexForward: aws.Bool(true),
 	}
 
+	fmt.Printf("Query: %#v", query)
+
 	return queryItems[*TransactionRecord](t.t, query)
 }
 
