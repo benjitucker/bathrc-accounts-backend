@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 type TransactionRecord struct {
@@ -94,30 +94,35 @@ func (t *TransactionTable) Get(id string) (*TransactionRecord, error) {
 func (t *TransactionTable) GetAllOfTypeRecent(txnType string, startDate time.Time) ([]*TransactionRecord, error) {
 	startDateStr := startDate.Format(time.RFC3339)
 
-	query := &dynamodb.QueryInput{
-		TableName: aws.String(t.t.tableName),
-		IndexName: aws.String("TypeDateIndex"),
+	keyCond := expression.Key("txnType").Equal(expression.Value(txnType)).
+		And(expression.Key("txnDate").GreaterThanEqual(expression.Value(startDateStr)))
 
-		KeyConditionExpression: aws.String(
-			"txnType = :txnType AND txnDate >= :startDate",
-		),
+	// Optional: project only specific attributes (or omit to retrieve all)
+	/*
+		proj := expression.NamesList(
+			expression.Name("PK"),
+			expression.Name("SK"),
+			expression.Name("CreatedAt"),
+		)
+	*/
 
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":txnType": &types.AttributeValueMemberS{
-				Value: txnType,
-			},
-			":startDate": &types.AttributeValueMemberS{
-				Value: startDateStr,
-			},
-		},
-
-		// sort ascending
-		//ScanIndexForward: aws.Bool(true),
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(keyCond).
+		//	WithProjection(proj).
+		Build()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build expression: %v", err)
 	}
 
-	fmt.Printf("Query: %#v", query)
-
-	return queryItems[*TransactionRecord](t.t, query)
+	return queryItems[*TransactionRecord](t.t, &dynamodb.QueryInput{
+		TableName:                 aws.String(t.t.tableName),
+		IndexName:                 aws.String("TypeDateIndex"),
+		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		//		ProjectionExpression:      expr.Projection(), // omit if you did not set projection
+		//		ScanIndexForward:          aws.Bool(true),    // true = ascending by CreatedAt
+	})
 }
 
 func (t *TransactionTable) GetAll() ([]*TransactionRecord, error) {
