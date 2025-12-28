@@ -93,7 +93,7 @@ func (t *TransactionTable) Get(id string) (*TransactionRecord, error) {
 
 func (t *TransactionTable) GetAllOfTypeRecent(txnType string, startDate time.Time) ([]*TransactionRecord, error) {
 	startDateStr := startDate.Format(time.RFC3339)
-	startDateStr = "2025-12-24T00:00:00Z07:00" // TODO remove
+
 	keyCond := expression.Key("txnType").Equal(expression.Value(txnType)).
 		And(expression.Key("txnDate").GreaterThanEqual(expression.Value(startDateStr)))
 
