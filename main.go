@@ -36,6 +36,8 @@ var (
 	ssmClient        *ssm.Client
 )
 
+// TODO - connect to jotform and check for training submissions that have not been processed, for reliability.
+
 func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	logger := log.With(logger, "method", "HandleRequest")
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
