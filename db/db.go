@@ -133,6 +133,8 @@ func queryItems[T dbItemIf](t *dbTable, query *dynamodb.QueryInput) ([]T, error)
 		if err := attributevalue.UnmarshalListOfMaps(page.Items, &pageItems); err != nil {
 			return nil, err
 		}
+
+		result = append(result, pageItems...)
 	}
 
 	return result, nil
