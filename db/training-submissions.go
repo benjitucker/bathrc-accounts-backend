@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -39,11 +38,7 @@ func (t *TrainingSubmissionTable) Open(ctx context.Context, ddb *dynamodb.Client
 }
 
 func (t *TrainingSubmissionTable) Put(record *TrainingSubmission, id string) error {
-	fmt.Println("put recordID %s", id)
 	record.SetID(id)
-	fmt.Println("record.id %s", record.id)
-	fmt.Println("record.GetID() %s", record.GetID())
-	fmt.Println("recordID %v", record)
 	return putItem[*TrainingSubmission](t.t, record)
 }
 

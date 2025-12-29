@@ -47,8 +47,6 @@ func mapToString(item map[string]types.AttributeValue) string {
 
 func putItem[T dbItemIf](t *dbTable, record T) error {
 
-	fmt.Println("putItem recordID %s", record.GetID())
-
 	item, err := attributevalue.MarshalMap(record)
 	if err != nil {
 		return err
