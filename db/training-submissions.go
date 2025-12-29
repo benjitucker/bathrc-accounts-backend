@@ -19,10 +19,10 @@ type TrainingSubmission struct {
 	RequestDateUnix           int64     `dynamodbav:"requestDateUnix"`
 	PaymentReference          string    `dynamodbav:"paymentReference"`
 	RequestCurrMem            bool      `dynamodbav:"requestCurrMem"`
+	ActualCurrMem             bool      `dynamodbav:"actualCurrMem"`
 	FoundMemberRecord         bool      `dynamodbav:"foundMemberRecord"`
 	AlreadyBooked             bool      `dynamodbav:"alreadyBooked"`
 	AlreadyBookedSubmissionId bool      `dynamodbav:"alreadyBookedSubmissionId"`
-	MembershipCorrect         bool      `dynamodbav:"membershipCorrect"`
 }
 
 type TrainingSubmissionTable struct {

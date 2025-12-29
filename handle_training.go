@@ -27,6 +27,7 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		DateUnix:          request.SelectSession.Date.Unix(),
 		MembershipNumber:  strings.Trim(request.MembershipNumber, " "),
 		RequestCurrMem:    currentMembership,
+		ActualCurrMem:     currentMembership, // Initially assume its correct
 		Venue:             request.SelectedVenue,
 		AmountPence:       int64(amountPence),
 		HorseName:         request.HorseName,
@@ -35,7 +36,6 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		PaymentReference:  request.PaymentReference,
 		FoundMemberRecord: true,
 		AlreadyBooked:     false,
-		MembershipCorrect: true,
 	}
 	err = trainTable.Put(&submission, formData.SubmissionID)
 	if err != nil {
@@ -58,25 +58,24 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 	}
 
 	// check that the membership is current, and flag inconsistency with the form data with member
-	membershipOnTrainingDate := membershipDateCheck(
+	submission.ActualCurrMem = membershipDateCheck(
 		memberRecord.MembershipValidFrom, memberRecord.MembershipValidTo, &submission.Date)
 
-	if membershipOnTrainingDate != submission.RequestCurrMem {
+	if submission.ActualCurrMem != submission.RequestCurrMem {
 		// email me on invalid membership incase it's a new member
 		err2 := fmt.Errorf("membership check for %s %s failed", memberRecord.FirstName, memberRecord.LastName)
 
-		submission.MembershipCorrect = false
 		// update
 		err = trainTable.Put(&submission, formData.SubmissionID)
 		if err != nil {
 			err2 = errors.Join(err2, err)
 		}
+		// TODO
+		// Email membership inconsistency
+		//emailHandler.SendEmail(memberRecord.Email,
+
 		return err2
 	}
-
-	// TODO
-	// Email membership inconsistency
-	//emailHandler.SendEmail(memberRecord.Email,
 
 	// TODO:
 	// check that a training request for the same date/time has not already been received
