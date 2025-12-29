@@ -34,13 +34,6 @@ func (t *TrainingSubmissionTable) Open(ctx context.Context, ddb *dynamodb.Client
 	t.t.ctx = ctx
 	t.t.ddb = ddb
 	t.t.tableName = "TrainingSubmissions"
-	t.t.pkValue = "ID"
-	/* Handled by Terraform
-	err := ensureTable(t.t)
-	if err != nil {
-		return err
-	}
-	*/
 	return nil
 }
 

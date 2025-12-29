@@ -20,7 +20,6 @@ type dbTable struct {
 	ctx       context.Context
 	ddb       *dynamodb.Client
 	tableName string
-	pkValue   string
 }
 
 type dbItemIf interface {
@@ -40,35 +39,10 @@ func (i *DBItem) SetID(id string) {
 	i.id = id
 }
 
-func ensureTable(t *dbTable) error {
-	_, err := t.ddb.DescribeTable(t.ctx, &dynamodb.DescribeTableInput{
-		TableName: aws.String(t.tableName),
-	})
-	if err == nil {
-		return nil // Table already exists
-	}
-
-	_, err = t.ddb.CreateTable(t.ctx, &dynamodb.CreateTableInput{
-		TableName: aws.String(t.tableName),
-		AttributeDefinitions: []types.AttributeDefinition{
-			{AttributeName: aws.String("ID"), AttributeType: types.ScalarAttributeTypeS},
-		},
-		KeySchema: []types.KeySchemaElement{
-			{AttributeName: aws.String("ID"), KeyType: types.KeyTypeHash},
-		},
-		BillingMode: types.BillingModePayPerRequest,
-	})
-	if err != nil {
-		return err
-	}
-
-	waiter := dynamodb.NewTableExistsWaiter(t.ddb)
-	return waiter.Wait(t.ctx, &dynamodb.DescribeTableInput{
-		TableName: aws.String(t.tableName),
-	}, 5*time.Minute)
-}
-
 func putItem[T dbItemIf](t *dbTable, record T) error {
+
+	fmt.Println("putItem recordID %s", record.GetID())
+
 	item, err := attributevalue.MarshalMap(record)
 	if err != nil {
 		return err
