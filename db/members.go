@@ -66,7 +66,7 @@ func (t *MemberTable) Open(ctx context.Context, ddb *dynamodb.Client) error {
 
 func (t *MemberTable) Put(record *MemberRecord) error {
 	record.SetID(record.MemberNumber)
-	return putItem(t.t, record)
+	return putItem[*MemberRecord](t.t, record)
 }
 
 func (t *MemberTable) Get(id string) (*MemberRecord, error) {

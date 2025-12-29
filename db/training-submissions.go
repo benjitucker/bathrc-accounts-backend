@@ -46,7 +46,7 @@ func (t *TrainingSubmissionTable) Open(ctx context.Context, ddb *dynamodb.Client
 
 func (t *TrainingSubmissionTable) Put(record *TrainingSubmission, id string) error {
 	record.SetID(id)
-	return putItem(t.t, record)
+	return putItem[*TrainingSubmission](t.t, record)
 }
 
 func (t *TrainingSubmissionTable) Get(id string) (*TrainingSubmission, error) {

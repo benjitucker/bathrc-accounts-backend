@@ -84,7 +84,7 @@ func (t *TransactionTable) Open(ctx context.Context, ddb *dynamodb.Client) error
 
 func (t *TransactionTable) Put(record *TransactionRecord) error {
 	record.SetID(record.Hash())
-	return putItem(t.t, record)
+	return putItem[*TransactionRecord](t.t, record)
 }
 
 func (t *TransactionTable) Get(id string) (*TransactionRecord, error) {
