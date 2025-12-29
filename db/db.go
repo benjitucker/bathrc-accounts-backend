@@ -58,7 +58,10 @@ func putItem[T dbItemIf](t *dbTable, record T) error {
 		TableName: aws.String(t.tableName),
 		Item:      item,
 	})
-	return fmt.Errorf("failed to PutItem: table %s; Item %s: %w", t.tableName, mapToString(item), err)
+	if err != nil {
+		return fmt.Errorf("failed to PutItem: table %s; Item %s: %w", t.tableName, mapToString(item), err)
+	}
+	return nil
 }
 
 // getItem retrieves an item by id and unmarshals it into the generic type T.
