@@ -54,6 +54,8 @@ func putItem[T dbItemIf](t *dbTable, record T) error {
 		return err
 	}
 
+	item["ID"] = &types.AttributeValueMemberS{Value: record.GetID()}
+
 	_, err = t.ddb.PutItem(t.ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(t.tableName),
 		Item:      item,
