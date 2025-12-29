@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -39,6 +40,11 @@ func (i *DBItem) SetID(id string) {
 	i.id = id
 }
 
+func mapToString(item map[string]types.AttributeValue) string {
+	result, _ := json.Marshal(item)
+	return string(result)
+}
+
 func putItem[T dbItemIf](t *dbTable, record T) error {
 
 	fmt.Println("putItem recordID %s", record.GetID())
@@ -52,7 +58,7 @@ func putItem[T dbItemIf](t *dbTable, record T) error {
 		TableName: aws.String(t.tableName),
 		Item:      item,
 	})
-	return fmt.Errorf("failed to PutItem: table %s; Item %#v: %w", t.tableName, item, err)
+	return fmt.Errorf("failed to PutItem: table %s; Item %s: %w", t.tableName, mapToString(item), err)
 }
 
 // getItem retrieves an item by id and unmarshals it into the generic type T.
