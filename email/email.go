@@ -9,7 +9,6 @@ import (
 	"html/template"
 	"log"
 	"mime/multipart"
-	"mime/quotedprintable"
 	"net/textproto"
 	"path/filepath"
 	"strings"
@@ -157,7 +156,9 @@ func (eh *EmailHandler) SendEmailPretty(recipient, templateName string, template
 	if err != nil {
 		log.Fatal(err)
 	}
-	encodedLogo := base64.StdEncoding.EncodeToString(logoBytes)
+
+	from := sender
+	to := recipient
 
 	// Replace placeholder in HTML if needed
 	// Ensure your template has: <img src="cid:logo123" alt="Logo">
@@ -167,50 +168,55 @@ func (eh *EmailHandler) SendEmailPretty(recipient, templateName string, template
 	var raw bytes.Buffer
 	mixed := multipart.NewWriter(&raw)
 
-	raw.WriteString(fmt.Sprintf("From: %s\r\n", sender))
-	raw.WriteString(fmt.Sprintf("To: %s\r\n", recipient))
-	raw.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
+	// --- Top-level headers (note: we use mixed.Boundary()) ---
+	raw.WriteString("From: " + from + "\r\n")
+	raw.WriteString("To: " + to + "\r\n")
+	raw.WriteString("Subject: " + subject + "\r\n")
 	raw.WriteString("MIME-Version: 1.0\r\n")
-	raw.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=\"%s\"\r\n", mixed.Boundary()))
+	raw.WriteString("Content-Type: multipart/mixed; boundary=\"" + mixed.Boundary() + "\"\r\n")
 	raw.WriteString("\r\n")
 
-	// multipart/alternative for text + html
-	altHeader := textproto.MIMEHeader{}
-	altHeader.Set("Content-Type", fmt.Sprintf("multipart/alternative; boundary=\"alt-%s\"", mixed.Boundary()))
-	altPart, _ := mixed.CreatePart(altHeader)
+	// ----- multipart/alternative -----
+	altPartHeader := textproto.MIMEHeader{}
+	altPartHeader.Set(
+		"Content-Type",
+		"multipart/alternative; boundary=\""+multipart.NewWriter(nil).Boundary()+"\"",
+	)
+	altPart, _ := mixed.CreatePart(altPartHeader)
+
+	// create a NEW writer for this part
 	alt := multipart.NewWriter(altPart)
 
-	// text/plain
+	// TEXT PART
 	txtHeader := textproto.MIMEHeader{}
 	txtHeader.Set("Content-Type", "text/plain; charset=UTF-8")
-	txtHeader.Set("Content-Transfer-Encoding", "quoted-printable")
-	txtWriter, _ := alt.CreatePart(txtHeader)
-	qpTxt := quotedprintable.NewWriter(txtWriter)
-	qpTxt.Write([]byte(textBody))
-	qpTxt.Close()
+	txt, _ := alt.CreatePart(txtHeader)
+	txt.Write([]byte(textBody))
 
-	// html + inline image (multipart/related)
-	relHeader := textproto.MIMEHeader{}
-	relHeader.Set("Content-Type", fmt.Sprintf("multipart/related; boundary=\"rel-%s\"", mixed.Boundary()))
-	relPart, _ := alt.CreatePart(relHeader)
+	// ----- multipart/related for HTML+images -----
+	relPartHeader := textproto.MIMEHeader{}
+	relPartHeader.Set(
+		"Content-Type",
+		"multipart/related; boundary=\""+multipart.NewWriter(nil).Boundary()+"\"",
+	)
+	relPart, _ := alt.CreatePart(relPartHeader)
+
 	rel := multipart.NewWriter(relPart)
 
+	// HTML PART
 	htmlHeader := textproto.MIMEHeader{}
 	htmlHeader.Set("Content-Type", "text/html; charset=UTF-8")
-	htmlHeader.Set("Content-Transfer-Encoding", "quoted-printable")
-	htmlWriter, _ := rel.CreatePart(htmlHeader)
-	qpHtml := quotedprintable.NewWriter(htmlWriter)
-	qpHtml.Write([]byte(htmlBody))
-	qpHtml.Close()
+	html, _ := rel.CreatePart(htmlHeader)
+	html.Write([]byte(htmlBody))
 
-	// Inline image
+	// INLINE IMAGE
 	imgHeader := textproto.MIMEHeader{}
 	imgHeader.Set("Content-Type", "image/png")
 	imgHeader.Set("Content-Transfer-Encoding", "base64")
 	imgHeader.Set("Content-ID", "<logo123>")
 	imgHeader.Set("Content-Disposition", "inline; filename=\"logo.png\"")
-	imgWriter, _ := rel.CreatePart(imgHeader)
-	imgWriter.Write([]byte(encodedLogo))
+	img, _ := rel.CreatePart(imgHeader)
+	img.Write([]byte(base64.StdEncoding.EncodeToString(logoBytes)))
 
 	rel.Close()
 	alt.Close()
