@@ -2,7 +2,6 @@ package main
 
 import (
 	"benjitucker/bathrc-accounts/db"
-	"benjitucker/bathrc-accounts/email"
 	"benjitucker/bathrc-accounts/jotform-webhook"
 	"errors"
 	"fmt"
@@ -81,10 +80,8 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 	// check that a training request for the same date/time has not already been received
 
 	// email member to confirm that their training request has been received, pending payment
-	emailHandler.SendConfirm(memberRecord.Email, &email.ConfirmData{
-		Name: memberRecord.FirstName,
-		Link: memberRecord.ClubMembershipStatus,
-	})
+	// TODO pending payment
+	emailHandler.SendConfirm(memberRecord, &submission)
 
 	/* TODO remove:
 	records, err := trainTable.GetAll()
