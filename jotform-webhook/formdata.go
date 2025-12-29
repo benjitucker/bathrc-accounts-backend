@@ -30,11 +30,11 @@ func (f *FormData) String() string {
 
 func (f *FormData) DebugString() string {
 	header := fmt.Sprintf(
-		"JotForm Submission\n"+
-			"FormTitle: %s\n"+
-			"SubmissionID: %s\n"+
-			"Username: %s\n"+
-			"IP: %s\n",
+		"JotForm Submission: "+
+			"FormTitle: %s; "+
+			"SubmissionID: %s; "+
+			"Username: %s; "+
+			"IP: %s, ",
 		f.FormTitle,
 		f.SubmissionID,
 		f.Username,
@@ -45,12 +45,12 @@ func (f *FormData) DebugString() string {
 
 	case TrainingRawRequest:
 		return header + fmt.Sprintf(
-			"Training Form\n"+
-				"Member: %s\n"+
-				"Horse: %s\n"+
-				"Session: %s (%d mins)\n"+
-				"Venue: %s\n"+
-				"Amount: %s\n",
+			"Training Form: "+
+				"Member: %s; "+
+				"Horse: %s; "+
+				"Session: %s (%d mins); "+
+				"Venue: %s; "+
+				"Amount: %s",
 			rr.MembershipNumber,
 			rr.HorseName,
 			rr.SelectSession.Date.Format(time.RFC1123),
@@ -61,10 +61,10 @@ func (f *FormData) DebugString() string {
 
 	case TrainingAdminRawRequest:
 		return header + fmt.Sprintf(
-			"Training Administration\n"+
-				"Send Emails: %s\n"+
-				"Uploads: %v\n"+
-				"Submitted: %s\n",
+			"Training Administration: "+
+				"Send Emails: %s; "+
+				"Uploads: %v; "+
+				"Submitted: %s",
 			rr.SendEmailsNow,
 			rr.UploadURLs,
 			rr.SubmitDate.Time().Format(time.RFC1123),
