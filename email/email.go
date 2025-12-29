@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"html/template"
 	"log"
-	"mime/multipart"
-	"net/textproto"
 	"path/filepath"
 	"strings"
 	texttmpl "text/template"
@@ -165,62 +163,64 @@ func (eh *EmailHandler) SendEmailPretty(recipient, templateName string, template
 	// htmlBody already references cid:logo123
 
 	// --- Build Raw MIME email ---
-	var raw bytes.Buffer
-	mixed := multipart.NewWriter(&raw)
 
-	// --- Top-level headers (note: we use mixed.Boundary()) ---
+	// ---------- BOUNDARIES ----------
+	mixedBoundary := "mixed_12345"
+	altBoundary := "alt_12345"
+	relBoundary := "rel_12345"
+
+	var raw bytes.Buffer
+
+	// ---------- HEADERS ----------
 	raw.WriteString("From: " + from + "\r\n")
 	raw.WriteString("To: " + to + "\r\n")
 	raw.WriteString("Subject: " + subject + "\r\n")
 	raw.WriteString("MIME-Version: 1.0\r\n")
-	raw.WriteString("Content-Type: multipart/mixed; boundary=\"" + mixed.Boundary() + "\"\r\n")
+	raw.WriteString("Content-Type: multipart/mixed; boundary=\"" + mixedBoundary + "\"\r\n")
 	raw.WriteString("\r\n")
 
-	// ----- multipart/alternative -----
-	altPartHeader := textproto.MIMEHeader{}
-	altPartHeader.Set(
-		"Content-Type",
-		"multipart/alternative; boundary=\""+multipart.NewWriter(nil).Boundary()+"\"",
-	)
-	altPart, _ := mixed.CreatePart(altPartHeader)
+	// ---------- multipart/alternative ----------
+	raw.WriteString("--" + mixedBoundary + "\r\n")
+	raw.WriteString("Content-Type: multipart/alternative; boundary=\"" + altBoundary + "\"\r\n")
+	raw.WriteString("\r\n")
 
-	// create a NEW writer for this part
-	alt := multipart.NewWriter(altPart)
+	// text/plain
+	raw.WriteString("--" + altBoundary + "\r\n")
+	raw.WriteString("Content-Type: text/plain; charset=UTF-8\r\n\r\n")
+	raw.WriteString(textBody + "\r\n")
 
-	// TEXT PART
-	txtHeader := textproto.MIMEHeader{}
-	txtHeader.Set("Content-Type", "text/plain; charset=UTF-8")
-	txt, _ := alt.CreatePart(txtHeader)
-	txt.Write([]byte(textBody))
+	// ---------- multipart/related ----------
+	raw.WriteString("--" + altBoundary + "\r\n")
+	raw.WriteString("Content-Type: multipart/related; boundary=\"" + relBoundary + "\"\r\n\r\n")
 
-	// ----- multipart/related for HTML+images -----
-	relPartHeader := textproto.MIMEHeader{}
-	relPartHeader.Set(
-		"Content-Type",
-		"multipart/related; boundary=\""+multipart.NewWriter(nil).Boundary()+"\"",
-	)
-	relPart, _ := alt.CreatePart(relPartHeader)
+	// html body
+	raw.WriteString("--" + relBoundary + "\r\n")
+	raw.WriteString("Content-Type: text/html; charset=UTF-8\r\n\r\n")
+	raw.WriteString(htmlBody + "\r\n")
 
-	rel := multipart.NewWriter(relPart)
+	// inline image
+	raw.WriteString("--" + relBoundary + "\r\n")
+	raw.WriteString("Content-Type: image/png\r\n")
+	raw.WriteString("Content-Transfer-Encoding: base64\r\n")
+	raw.WriteString("Content-ID: <logo123>\r\n")
+	raw.WriteString("Content-Disposition: inline; filename=\"logo.png\"\r\n\r\n")
 
-	// HTML PART
-	htmlHeader := textproto.MIMEHeader{}
-	htmlHeader.Set("Content-Type", "text/html; charset=UTF-8")
-	html, _ := rel.CreatePart(htmlHeader)
-	html.Write([]byte(htmlBody))
+	// split base64 into lines (good practice)
+	encoded := base64.StdEncoding.EncodeToString(logoBytes)
+	for len(encoded) > 76 {
+		raw.WriteString(encoded[:76] + "\r\n")
+		encoded = encoded[76:]
+	}
+	raw.WriteString(encoded + "\r\n")
 
-	// INLINE IMAGE
-	imgHeader := textproto.MIMEHeader{}
-	imgHeader.Set("Content-Type", "image/png")
-	imgHeader.Set("Content-Transfer-Encoding", "base64")
-	imgHeader.Set("Content-ID", "<logo123>")
-	imgHeader.Set("Content-Disposition", "inline; filename=\"logo.png\"")
-	img, _ := rel.CreatePart(imgHeader)
-	img.Write([]byte(base64.StdEncoding.EncodeToString(logoBytes)))
+	// close related
+	raw.WriteString("--" + relBoundary + "--\r\n")
 
-	rel.Close()
-	alt.Close()
-	mixed.Close()
+	// close alternative
+	raw.WriteString("--" + altBoundary + "--\r\n")
+
+	// close mixed
+	raw.WriteString("--" + mixedBoundary + "--\r\n")
 
 	input := &ses.SendRawEmailInput{
 		Source:       aws.String(sender), // sender
