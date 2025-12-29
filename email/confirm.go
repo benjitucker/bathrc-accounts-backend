@@ -3,6 +3,7 @@ package email
 import (
 	"benjitucker/bathrc-accounts/db"
 	"fmt"
+	"time"
 )
 
 type ConfirmData struct {
@@ -10,20 +11,28 @@ type ConfirmData struct {
 }
 
 func (eh *EmailHandler) SendConfirm(member *db.MemberRecord, submission *db.TrainingSubmission) {
-	t := submission.Date
-	formatted := fmt.Sprintf("%s %s %s at %d%d%dPM",
-		t.Format("Monday"),
-		dayWithSuffix(t.Day()),
-		t.Format("January"),
-		t.Hour()%12,
-		t.Minute()/10,
-		t.Minute()%10)
-
 	eh.SendEmailPretty(member.Email, "confirm", &ConfirmData{
 		FirstName:    member.FirstName,
 		Venue:        submission.Venue,
-		TrainingDate: formatted,
+		TrainingDate: formatCustomDate(submission.Date),
 	})
+}
+
+func formatCustomDate(t time.Time) string {
+	hour := t.Hour() % 12
+	if hour == 0 {
+		hour = 12
+	}
+	minute := t.Minute()
+	ampm := t.Format("PM")
+
+	return fmt.Sprintf("%s %s %s at %d:%d%d %s",
+		t.Format("Monday"),
+		dayWithSuffix(t.Day()),
+		t.Format("January"),
+		hour, minute/10, minute%10,
+		ampm,
+	)
 }
 
 func dayWithSuffix(day int) string {
