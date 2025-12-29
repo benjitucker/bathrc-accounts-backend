@@ -9,9 +9,20 @@ import (
 
 type TrainingSubmission struct {
 	DBItem
-	Date             time.Time `dynamodbav:"trainingDate"`
-	DateUnix         int64     `dynamodbav:"trainingDateUnix"`
-	MembershipNumber string    `dynamodbav:"brcMembership"`
+	Date                      time.Time `dynamodbav:"trainingDate"`
+	DateUnix                  int64     `dynamodbav:"trainingDateUnix"`
+	MembershipNumber          string    `dynamodbav:"brcMembership"`
+	Venue                     string    `dynamodbav:"trainingVenue"`
+	AmountPence               int64     `dynamodbav:"amountPence"`
+	HorseName                 string    `dynamodbav:"horseName"`
+	RequestDate               time.Time `dynamodbav:"requestDate"`
+	RequestDateUnix           int64     `dynamodbav:"requestDateUnix"`
+	PaymentReference          string    `dynamodbav:"paymentReference"`
+	RequestCurrMem            bool      `dynamodbav:"requestCurrMem"`
+	FoundMemberRecord         bool      `dynamodbav:"foundMemberRecord"`
+	AlreadyBooked             bool      `dynamodbav:"alreadyBooked"`
+	AlreadyBookedSubmissionId bool      `dynamodbav:"alreadyBookedSubmissionId"`
+	MembershipCorrect         bool      `dynamodbav:"membershipCorrect"`
 }
 
 type TrainingSubmissionTable struct {

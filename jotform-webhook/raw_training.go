@@ -43,19 +43,47 @@ func (s *SelectSession) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// StringList handles JSON that may be a string or an array of strings.
+type StringList []string
+
+func (s *StringList) UnmarshalJSON(data []byte) error {
+	// Try single string first
+	var single string
+	if err := json.Unmarshal(data, &single); err == nil {
+		*s = []string{single}
+		return nil
+	}
+
+	// Then try array of strings
+	var list []string
+	if err := json.Unmarshal(data, &list); err == nil {
+		*s = list
+		return nil
+	}
+
+	// Allow null -> empty list
+	if string(data) == "null" {
+		*s = nil
+		return nil
+	}
+
+	return fmt.Errorf("StringList: value must be string or []string, got: %s", string(data))
+}
+
 type TrainingRawRequest struct {
-	Slug             string        `json:"slug"`
-	SubmitSource     string        `json:"submitSource"`
-	SubmitDate       UnixMillis    `json:"submitDate"`
-	BuildDate        UnixMillis    `json:"buildDate"`
-	MembershipNumber string        `json:"q15_brcMembership15"`
-	HorseName        string        `json:"q18_horseName18"`
-	SelectSession    SelectSession `json:"q5_selectSession"`
-	SelectedVenue    string        `json:"q34_selectedVenue"`
-	PaymentReference string        `json:"q12_typeA"`
-	Amount           string        `json:"q31_amount"`
-	Preview          string        `json:"preview"`
-	Path             string        `json:"path"`
+	Slug                       string        `json:"slug"`
+	SubmitSource               string        `json:"submitSource"`
+	SubmitDate                 UnixMillis    `json:"submitDate"`
+	BuildDate                  UnixMillis    `json:"buildDate"`
+	MembershipNumber           string        `json:"q15_brcMembership15"`
+	HorseName                  string        `json:"q18_horseName18"`
+	SelectSession              SelectSession `json:"q5_selectSession"`
+	CurrentMembershipSelection StringList    `json:"q28_typeA28"`
+	SelectedVenue              string        `json:"q34_selectedVenue"`
+	PaymentReference           string        `json:"q12_typeA"`
+	Amount                     string        `json:"q31_amount"`
+	Preview                    string        `json:"preview"`
+	Path                       string        `json:"path"`
 }
 
 func (TrainingRawRequest) FormKind() string {

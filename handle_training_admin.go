@@ -69,7 +69,7 @@ func handleMembers(records []*db.MemberRecord) error {
 	// TODO:
 	// Work out which member training confirmations email have not been sent and send them
 
-	sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: Training Admin",
+	emailHandler.SendEmail("ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: Training Admin",
 		fmt.Sprintf("Uploaded member table. Currently holding %d members\n", len(records)))
 
 	return nil
@@ -98,7 +98,7 @@ func handleTransactions(records []*db.TransactionRecord) error {
 		_ = level.Debug(logger).Log("msg", "Handle Request", "record in the last 72 hours from db", record)
 	}
 
-	sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: Training Admin",
+	emailHandler.SendEmail("ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: Training Admin",
 		fmt.Sprintf("Found %d CR transactions in the last 72 hours\n", len(records)))
 
 	return nil

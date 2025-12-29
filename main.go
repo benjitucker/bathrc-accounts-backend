@@ -2,6 +2,7 @@ package main
 
 import (
 	"benjitucker/bathrc-accounts/db"
+	"benjitucker/bathrc-accounts/email"
 	"benjitucker/bathrc-accounts/jotform"
 	"benjitucker/bathrc-accounts/jotform-webhook"
 	"context"
@@ -32,7 +33,7 @@ var (
 	memberTable      db.MemberTable
 	transactionTable db.TransactionTable
 	jotformClient    *jotform.APIClient
-	sesClient        *ses.Client
+	emailHandler     *email.EmailHandler
 	ssmClient        *ssm.Client
 )
 
@@ -59,7 +60,7 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	}
 
 	if err != nil {
-		sendEmail(ctx, "ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: FAIL", err.Error())
+		emailHandler.SendEmail("ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: FAIL", err.Error())
 		return serverError(err)
 	}
 
@@ -125,8 +126,14 @@ func main() {
 	}
 
 	ddb := dynamodb.NewFromConfig(cfg)
-	sesClient = ses.NewFromConfig(cfg)
+	sesClient := ses.NewFromConfig(cfg)
 	ssmClient = ssm.NewFromConfig(cfg)
+
+	emailHandler, err = email.NewEmailHandler(ctx, sesClient)
+	if err != nil {
+		_ = level.Error(logger).Log("unable to open create new email handler: %v", err)
+		return
+	}
 
 	// TODO - do not open everything if you dont need to
 
