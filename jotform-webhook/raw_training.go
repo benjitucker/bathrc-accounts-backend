@@ -67,47 +67,48 @@ func (r *TrainingRawRequest) UnmarshalJSON(b []byte) error {
 
 		for k, v := range m {
 			if strings.HasSuffix(k, "horseName18"+suffix) {
-				hasEntry = true
 				_ = json.Unmarshal(v, &entry.HorseName)
 			}
 
 			if strings.HasSuffix(k, "brcMembership15"+suffix) {
-				hasEntry = true
 				_ = json.Unmarshal(v, &entry.MembershipNumber)
+				// If it's an empty membership number string, there is no entry here.
+				if entry.MembershipNumber == "" {
+					break
+				}
+				hasEntry = true
 			}
 
 			if strings.HasSuffix(k, "typeA28"+suffix) {
-				hasEntry = true
 				_ = json.Unmarshal(v, &entry.CurrentMembershipSelection)
 			}
 
 			if strings.HasSuffix(k, "amount"+suffix) {
-				hasEntry = true
 				_ = json.Unmarshal(v, &entry.Amount)
 			}
 
 			if strings.HasSuffix(k, "selectedVenue"+suffix) {
-				hasEntry = true
 				_ = json.Unmarshal(v, &entry.Venue)
 			}
 
 			if strings.HasSuffix(k, "selectSession"+suffix) {
-				hasEntry = true
 				var sess sessionJSON
 				_ = json.Unmarshal(v, &sess)
 
-				// Parse session date+timezone
-				start, err := ParseSessionDate(sess.Date, sess.Timezone)
-				if err != nil {
-					return fmt.Errorf("session %d date parse failed: %w", i+1, err)
-				}
+				if sess.Date != "" {
+					// Parse session date+timezone
+					start, err := ParseSessionDate(sess.Date, sess.Timezone)
+					if err != nil {
+						return fmt.Errorf("session %d date parse failed: %w", i+1, err)
+					}
 
-				var mins int
-				fmt.Sscan(sess.Duration, &mins)
-				entry.SelectSession = Session{
-					StartLocal: start,
-					Duration:   time.Duration(mins) * time.Minute,
-					Timezone:   sess.Timezone,
+					var mins int
+					fmt.Sscan(sess.Duration, &mins)
+					entry.SelectSession = Session{
+						StartLocal: start,
+						Duration:   time.Duration(mins) * time.Minute,
+						Timezone:   sess.Timezone,
+					}
 				}
 			}
 		}

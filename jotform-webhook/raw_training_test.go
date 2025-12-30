@@ -39,6 +39,74 @@ func TestTrainingRawRequest_Unmarshal(t *testing.T) {
 	}
 }
 
+func TestTrainingRawRequest_Unmarshal_one_entry(t *testing.T) {
+	js := `{
+  "slug": "submit/252725624662359",
+  "jsExecutionTracker": "build-date-1767123676125=>init-started:1767123678849=>validator-called:1767123678890=>validator-mounted-false:1767123678891=>init-complete:1767123678894=>interval-complete:1767123699896=>onsubmit-fired:1767123739153=>observerSubmitHandler_received-submit-event:1767123739154=>submit-validation-passed:1767123739176=>observerSubmitHandler_validation-passed-submitting-form:1767123739202",
+  "submitSource": "form",
+  "submitDate": "1767123739202",
+  "buildDate": "1767123676125",
+  "uploadServerUrl": "https://upload.jotform.com/upload",
+  "eventObserver": "1",
+  "q15_brcMembership15": "1111111",
+  "q18_horseName18": "Luke",
+  "q5_selectSession": {
+    "implementation": "new",
+    "date": "2026-01-02 20:00",
+    "duration": "60",
+    "timezone": "Europe/London (GMT)"
+  },
+  "q34_selectedVenue": "Widbrook",
+  "q31_amount": "20",
+  "q58_totalAmount": "20",
+  "q53_paymentRef": "CATJ",
+  "q12_typeA": "CATJ",
+  "q54_wwecnonmem": "26",
+  "q55_wwecmem": "21",
+  "q56_widnonmem": "20",
+  "q57_widmem": "16",
+  "q48_brcMembership15-2": "",
+  "q50_horseName18-2": "",
+  "q51_selectSession-2": {
+    "implementation": "new",
+    "date": "",
+    "duration": "60",
+    "timezone": "Europe/London (GMT+00:00)"
+  },
+  "q60_selectedVenue-2": "",
+  "q59_amount-2": "0",
+  "event_id": "1767123678850_252725624662359_TRJHlhC",
+  "jotform_pwa": "1",
+  "pwa_id": "253053519411349",
+  "pwa_isPWA": "true",
+  "pwa_device": "mobile",
+  "timeToSubmit": "20",
+  "validatedNewRequiredFieldIDs": "",
+  "visitedPages": ""
+}`
+	var rr TrainingRawRequest
+	if err := json.Unmarshal([]byte(js), &rr); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rr.Entries) != 1 {
+		t.Errorf("should be one entry")
+	}
+
+	_, _, startday := rr.Entries[0].SelectSession.StartLocal.Date()
+	if startday != 2 {
+		t.Errorf("date parse failed")
+	}
+
+	if rr.Entries[0].Venue != "Widbrook" {
+		t.Errorf("venue parse failed")
+	}
+
+	if rr.SubmitDate.Time().Before(time.Unix(0, 0)) {
+		t.Errorf("submitDate invalid")
+	}
+}
+
 func TestTrainingRawRequest_Unmarshal_second_entry(t *testing.T) {
 	js := `{
   "slug": "submit/252725624662359",
