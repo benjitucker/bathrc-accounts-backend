@@ -27,17 +27,16 @@ const (
 )
 
 var (
-	ctx                     context.Context
-	logger                  log.Logger
-	trainTable              db.TrainingSubmissionTable
-	memberTable             db.MemberTable
-	transactionTable        db.TransactionTable
-	jotformClient           *jotform.APIClient
-	emailHandler            *email.EmailHandler
-	ssmClient               *ssm.Client
-	accountNumber, sortCode string
-	testEmail, testEmail2   string
-	testMode                = true // TODO - disable
+	ctx                   context.Context
+	logger                log.Logger
+	trainTable            db.TrainingSubmissionTable
+	memberTable           db.MemberTable
+	transactionTable      db.TransactionTable
+	jotformClient         *jotform.APIClient
+	emailHandler          *email.EmailHandler
+	ssmClient             *ssm.Client
+	testEmail, testEmail2 string
+	testMode              = true // TODO - disable
 )
 
 // TODO - connect to jotform and check for training submissions that have not been processed, for reliability.
@@ -131,7 +130,10 @@ func main() {
 	sesClient := ses.NewFromConfig(cfg)
 	ssmClient = ssm.NewFromConfig(cfg)
 
-	emailHandler, err = email.NewEmailHandler(ctx, sesClient)
+	emailHandler, err = email.NewEmailHandler(ctx, sesClient, email.HandlerParams{
+		AccountNumber: getSecret("bathrc-account-number"),
+		SortCode:      getSecret("bathrc-sort-code"),
+	})
 	if err != nil {
 		_ = level.Error(logger).Log("unable to open create new email handler: %v", err)
 		return
@@ -160,8 +162,6 @@ func main() {
 	jotformClient = jotform.NewJotFormAPIClient(
 		getSecret("bathrc-jotform-apikey"), "json", logLevel == "debug")
 
-	accountNumber = getSecret("bathrc-account-number")
-	sortCode = getSecret("bathrc-sort-code")
 	testEmail = getSecret("test-email-address")
 	testEmail2 = getSecret("test-email-address2")
 

@@ -38,13 +38,19 @@ type EmailHandler struct {
 	ctx       context.Context
 	sesClient *ses.Client
 	templates map[string]EmailTemplates
+	params    HandlerParams
 }
 
-func NewEmailHandler(ctx context.Context, sesClient *ses.Client) (*EmailHandler, error) {
+type HandlerParams struct {
+	AccountNumber, SortCode string
+}
+
+func NewEmailHandler(ctx context.Context, sesClient *ses.Client, params HandlerParams) (*EmailHandler, error) {
 	result := &EmailHandler{
 		ctx:       ctx,
 		sesClient: sesClient,
 		templates: make(map[string]EmailTemplates),
+		params:    params,
 	}
 
 	entries, err := templateFS.ReadDir("templates")
