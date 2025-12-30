@@ -34,7 +34,7 @@ func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissi
 		// Assume entry 2 submission
 		var recipients []string
 		var firstNames string
-		if members[0] == members[1] {
+		if members[0].GetID() == members[1].GetID() {
 			recipients = append(recipients, members[0].Email)
 			firstNames = members[0].FirstName
 		} else {
