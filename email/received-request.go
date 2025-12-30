@@ -70,7 +70,7 @@ func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissi
 			SortCode:      eh.params.SortCode,
 			Reference:     submissions[0].PaymentReference,
 			Amount:        formatAmount(submissions[0].AmountPence + submissions[1].AmountPence),
-			PayDate:       formatCustomDateTime(earliestDate(submissions[0].PayByDate, submissions[1].PayByDate)),
+			PayDate:       formatCustomDate(earliestDate(submissions[0].PayByDate, submissions[1].PayByDate)),
 		})
 	} else {
 		// TODO - more that 2 entry submission
