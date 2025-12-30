@@ -43,9 +43,9 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 
 	// Check membership number
 	memberRecord, err := memberTable.Get(submission.MembershipNumber)
-	if err != nil {
+	if memberRecord == nil || err != nil {
 		// email me on invalid membership number incase it's a new member
-		err2 := fmt.Errorf("membership record for number (%s): %w", submission.MembershipNumber, err)
+		err2 := fmt.Errorf("no membership record for %s: %w", submission.MembershipNumber, err)
 
 		submission.FoundMemberRecord = false
 		// update
