@@ -34,19 +34,20 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		currentMembership := len(entry.CurrentMembershipSelection[0]) > 0
 
 		submissions = append(submissions, &db.TrainingSubmission{
-			Date:              entry.SelectSession.StartLocal,
-			DateUnix:          entry.SelectSession.StartLocal.Unix(),
-			PayByDate:         entry.SelectSession.StartLocal.Add(payBeforeSessionDuration),
-			MembershipNumber:  strings.Trim(entry.MembershipNumber, " "),
-			RequestCurrMem:    currentMembership,
-			Venue:             entry.Venue,
-			AmountPence:       int64(amountPence),
-			HorseName:         entry.HorseName,
-			RequestDate:       requestDate,
-			RequestDateUnix:   requestDate.Unix(),
-			PaymentReference:  request.PaymentReference,
-			FoundMemberRecord: true,
-			AlreadyBooked:     false,
+			Date:                     entry.SelectSession.StartLocal,
+			DateUnix:                 entry.SelectSession.StartLocal.Unix(),
+			PayByDate:                entry.SelectSession.StartLocal.Add(payBeforeSessionDuration),
+			MembershipNumber:         strings.Trim(entry.MembershipNumber, " "),
+			RequestCurrMem:           currentMembership,
+			Venue:                    entry.Venue,
+			AmountPence:              int64(amountPence),
+			HorseName:                entry.HorseName,
+			RequestDate:              requestDate,
+			RequestDateUnix:          requestDate.Unix(),
+			PaymentReference:         request.PaymentReference,
+			FoundMemberRecord:        true,
+			AlreadyBooked:            false,
+			ReceivedRequestEmailSent: true, // Assume that it will be
 		})
 	}
 
@@ -77,7 +78,7 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 
 			submission.FoundMemberRecord = false
 			// update
-			err = trainTable.Put(submission, formData.SubmissionID)
+			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
 				err2 = errors.Join(err2, err)
 				return err2
@@ -101,11 +102,11 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 			memberRecord.MembershipValidFrom, memberRecord.MembershipValidTo, &submission.Date)
 
 		if submission.ActualCurrMem != submission.RequestCurrMem {
-			// email me on invalid membership incase it's a new member
+			// email me on invalid membership incase it's a new membership
 			err2 := fmt.Errorf("membership check for %s %s failed", memberRecord.FirstName, memberRecord.LastName)
 
 			// update
-			err = trainTable.Put(submission, formData.SubmissionID)
+			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
 				err2 = errors.Join(err2, err)
 			}
@@ -144,6 +145,14 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 
 	if sendReceivedRequestEmail {
 		emailHandler.SendReceivedRequest(memberRecords, submissions)
+	} else {
+		for _, submission := range submissions {
+			submission.ReceivedRequestEmailSent = false
+			err := trainTable.Put(submission, submission.GetID())
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

@@ -25,6 +25,7 @@ type TrainingSubmission struct {
 	AlreadyBooked             bool      `dynamodbav:"alreadyBooked"`
 	AlreadyBookedSubmissionId bool      `dynamodbav:"alreadyBookedSubmissionId"`
 	LinkedSubmissionIds       []string  `dynamodbav:"linkedSubmissionIds"`
+	ReceivedRequestEmailSent  bool      `dynamodbav:"receivedRequestEmailSent"`
 }
 
 type TrainingSubmissionTable struct {
