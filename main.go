@@ -61,7 +61,6 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 
 	if err != nil {
 		emailHandler.SendEmail("ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: FAIL", err.Error())
-		return serverError(err)
 	}
 
 	resp := events.APIGatewayProxyResponse{
