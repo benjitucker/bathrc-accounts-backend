@@ -1,11 +1,9 @@
 package main
 
 import (
-	"benjitucker/bathrc-accounts/db"
 	"benjitucker/bathrc-accounts/jotform-webhook"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/go-kit/log/level"
 )
@@ -46,64 +44,4 @@ func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook
 	err = errors.Join(errs...)
 	_ = level.Warn(logger).Log("msg", "handle admin", "err", err)
 	return err
-}
-
-func handleMembers(records []*db.MemberRecord) error {
-	err := memberTable.PutAll(records)
-	if err != nil {
-		return err
-	}
-
-	records, err = memberTable.GetAll()
-	if err != nil {
-		return err
-	}
-
-	_ = level.Debug(logger).Log("msg", "Handle Request", "total members now", len(records))
-	/*
-		for _, record := range records {
-			_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
-		}
-	*/
-
-	// TODO:
-	// Work out which member training confirmations email have not been sent and send them
-
-	emailHandler.SendEmail(testEmail, "jotform webhook: Training Admin",
-		fmt.Sprintf("Uploaded member table. Currently holding %d members\n", len(records)))
-
-	return nil
-}
-
-func handleTransactions(records []*db.TransactionRecord) error {
-
-	err := transactionTable.PutAll(records)
-	if err != nil {
-		return err
-	}
-
-	_ = level.Debug(logger).Log("msg", "Handle Request", "added/updated transactions", len(records))
-
-	// TODO:
-	// Match received payments for training sessions and email members confirmation of received payment
-	// if they have not already been sent
-
-	// TODO:
-	// Check the number of paid entries per session and reject the latest ones if the numbers are too
-	// high
-
-	// TODO : remove this test code
-	records, err = transactionTable.GetAllOfTypeRecent("CR", time.Now().Add(time.Hour*-200))
-	if err != nil {
-		return err
-	}
-
-	for _, record := range records {
-		_ = level.Debug(logger).Log("msg", "Handle Request", "record in the last 72 hours from db", record)
-	}
-
-	emailHandler.SendEmail(testEmail, "jotform webhook: Training Admin",
-		fmt.Sprintf("Found %d CR transactions in the last 72 hours\n", len(records)))
-
-	return nil
 }
