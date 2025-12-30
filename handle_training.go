@@ -38,6 +38,8 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 			Date:                     entry.SelectSession.StartLocal,
 			DateUnix:                 entry.SelectSession.StartLocal.Unix(),
 			PayByDate:                entry.SelectSession.StartLocal.Add(payBeforeSessionDuration),
+			Paid:                     false,
+			Expired:                  false,
 			MembershipNumber:         strings.Trim(entry.MembershipNumber, " "),
 			RequestCurrMem:           currentMembership,
 			Venue:                    entry.Venue,

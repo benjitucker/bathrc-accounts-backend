@@ -11,6 +11,8 @@ type TrainingSubmission struct {
 	DBItem
 	Date                      time.Time `dynamodbav:"trainingDate"`
 	PayByDate                 time.Time `dynamodbav:"payByDate"`
+	Paid                      bool      `dynamodbav:"paid"`
+	Expired                   bool      `dynamodbav:"expired"`
 	DateUnix                  int64     `dynamodbav:"trainingDateUnix"`
 	MembershipNumber          string    `dynamodbav:"brcMembership"`
 	Venue                     string    `dynamodbav:"trainingVenue"`
