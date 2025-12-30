@@ -3,18 +3,33 @@ package email
 import (
 	"benjitucker/bathrc-accounts/db"
 	"fmt"
+	"time"
 )
 
 type ReceivedRequestData struct {
-	FirstName, Venue, TrainingDate, AccountNumber, SortCode, Reference, Amount string
+	FirstName, Venue, TrainingDate, AccountNumber, SortCode, Reference, Amount, PayDate string
 }
 
 type ReceivedRequest2Data struct {
-	FirstName, Venue, TrainingDate, Venue2, TrainingDate2, AccountNumber, SortCode, Reference, Amount string
+	FirstName, Venue, TrainingDate, Venue2, TrainingDate2, AccountNumber, SortCode, Reference, Amount, PayDate string
 }
 
 func formatAmount(amountPence int64) string {
-	return fmt.Sprintf("%d.%d", amountPence/100, amountPence%100)
+	return fmt.Sprintf("%d.%02d", amountPence/100, amountPence%100)
+}
+
+func earliestDate(dates ...time.Time) time.Time {
+	if len(dates) == 0 {
+		return time.Time{}
+	}
+
+	earliest := dates[0]
+	for _, d := range dates[1:] {
+		if d.Before(earliest) {
+			earliest = d
+		}
+	}
+	return earliest
 }
 
 func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissions []*db.TrainingSubmission) {
@@ -29,6 +44,7 @@ func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissi
 			SortCode:      eh.params.SortCode,
 			Reference:     submission.PaymentReference,
 			Amount:        formatAmount(submission.AmountPence),
+			PayDate:       formatCustomDate(submission.PayByDate),
 		})
 	} else if len(submissions) == 2 {
 		// Assume entry 2 submission
@@ -54,6 +70,7 @@ func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissi
 			SortCode:      eh.params.SortCode,
 			Reference:     submissions[0].PaymentReference,
 			Amount:        formatAmount(submissions[0].AmountPence + submissions[1].AmountPence),
+			PayDate:       formatCustomDate(earliestDate(submissions[0].PayByDate, submissions[1].PayByDate)),
 		})
 	} else {
 		// TODO - more that 2 entry submission

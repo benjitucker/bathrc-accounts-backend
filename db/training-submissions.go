@@ -10,6 +10,7 @@ import (
 type TrainingSubmission struct {
 	DBItem
 	Date                      time.Time `dynamodbav:"trainingDate"`
+	PayByDate                 time.Time `dynamodbav:"payByDate"`
 	DateUnix                  int64     `dynamodbav:"trainingDateUnix"`
 	MembershipNumber          string    `dynamodbav:"brcMembership"`
 	Venue                     string    `dynamodbav:"trainingVenue"`

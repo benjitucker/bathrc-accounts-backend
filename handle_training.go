@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const (
+	payBeforeSessionDuration = time.Hour * -36
+)
+
 func makeId(formData *jotform_webhook.FormData, entryIndex int) string {
 	return fmt.Sprintf("%s-%d", formData.SubmissionID, entryIndex)
 }
@@ -32,6 +36,7 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		submissions = append(submissions, &db.TrainingSubmission{
 			Date:              entry.SelectSession.StartLocal,
 			DateUnix:          entry.SelectSession.StartLocal.Unix(),
+			PayByDate:         entry.SelectSession.StartLocal.Add(payBeforeSessionDuration),
 			MembershipNumber:  strings.Trim(entry.MembershipNumber, " "),
 			RequestCurrMem:    currentMembership,
 			Venue:             entry.Venue,
