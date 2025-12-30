@@ -11,93 +11,112 @@ import (
 	"time"
 )
 
+func makeId(formData *jotform_webhook.FormData, entryIndex int) string {
+	return fmt.Sprintf("%s-%d", formData.SubmissionID, entryIndex)
+}
+
 func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_webhook.TrainingRawRequest) error {
 
-	amount, err := strconv.ParseFloat(request.Amount, 64)
-	if err != nil {
-		return fmt.Errorf("amount float number (%s): %w", request.Amount, err)
-	}
-	amountPence := math.Floor(amount * 100)
-	requestDate := time.Time(request.SubmitDate)
-	currentMembership := len(request.CurrentMembershipSelection[0]) > 0
+	submissions := make([]*db.TrainingSubmission, 2)
 
-	submission := db.TrainingSubmission{
-		Date:              request.SelectSession.Date,
-		DateUnix:          request.SelectSession.Date.Unix(),
-		MembershipNumber:  strings.Trim(request.MembershipNumber, " "),
-		RequestCurrMem:    currentMembership,
-		ActualCurrMem:     currentMembership, // Initially assume its correct
-		Venue:             request.SelectedVenue,
-		AmountPence:       int64(amountPence),
-		HorseName:         request.HorseName,
-		RequestDate:       requestDate,
-		RequestDateUnix:   requestDate.Unix(),
-		PaymentReference:  request.PaymentReference,
-		FoundMemberRecord: true,
-		AlreadyBooked:     false,
-	}
-	err = trainTable.Put(&submission, formData.SubmissionID)
-	if err != nil {
-		return err
-	}
+	for i, entry := range request.Entries {
 
-	// Check membership number
-	memberRecord, err := memberTable.Get(submission.MembershipNumber)
-	if memberRecord == nil || err != nil {
-		// email me on invalid membership number incase it's a new member
-		err2 := fmt.Errorf("no membership record for %s: %w", submission.MembershipNumber, err)
-
-		submission.FoundMemberRecord = false
-		// update
-		err = trainTable.Put(&submission, formData.SubmissionID)
+		amount, err := strconv.ParseFloat(entry.Amount, 64)
 		if err != nil {
-			err2 = errors.Join(err2, err)
+			return fmt.Errorf("amount float number (%s): %w", entry.Amount, err)
 		}
-		return err2
+		amountPence := math.Floor(amount * 100)
+		requestDate := time.Time(request.SubmitDate)
+		currentMembership := len(entry.CurrentMembershipSelection[0]) > 0
+
+		submissions[i] = &db.TrainingSubmission{
+			Date:              entry.SelectSession.StartLocal,
+			DateUnix:          entry.SelectSession.StartLocal.Unix(),
+			MembershipNumber:  strings.Trim(entry.MembershipNumber, " "),
+			RequestCurrMem:    currentMembership,
+			ActualCurrMem:     currentMembership, // Initially assume its correct
+			Venue:             entry.Venue,
+			AmountPence:       int64(amountPence),
+			HorseName:         entry.HorseName,
+			RequestDate:       requestDate,
+			RequestDateUnix:   requestDate.Unix(),
+			PaymentReference:  request.PaymentReference,
+			FoundMemberRecord: true,
+			AlreadyBooked:     false,
+		}
 	}
 
-	// check that the membership is current, and flag inconsistency with the form data with member
-	submission.ActualCurrMem = membershipDateCheck(
-		memberRecord.MembershipValidFrom, memberRecord.MembershipValidTo, &submission.Date)
+	for entryIndex, submission := range submissions {
+		// fill the cross-references
+		for i := range submissions {
+			submission.LinkedSubmissionIds =
+				append(submission.LinkedSubmissionIds, makeId(formData, i))
+		}
 
-	if submission.ActualCurrMem != submission.RequestCurrMem {
-		// email me on invalid membership incase it's a new member
-		err2 := fmt.Errorf("membership check for %s %s failed", memberRecord.FirstName, memberRecord.LastName)
-
-		// update
-		err = trainTable.Put(&submission, formData.SubmissionID)
+		err := trainTable.Put(submission, makeId(formData, entryIndex))
 		if err != nil {
-			err2 = errors.Join(err2, err)
+			return err
 		}
-		// TODO
-		// Email membership inconsistency
-		//emailHandler.SendEmail(memberRecord.Email,
 
-		return err2
+		// Check membership number
+		memberRecord, err := memberTable.Get(submission.MembershipNumber)
+		if memberRecord == nil || err != nil {
+			// email me on invalid membership number incase it's a new member
+			err2 := fmt.Errorf("no membership record for %s: %w", submission.MembershipNumber, err)
+
+			submission.FoundMemberRecord = false
+			// update
+			err = trainTable.Put(submission, formData.SubmissionID)
+			if err != nil {
+				err2 = errors.Join(err2, err)
+			}
+			return err2
+		}
+
+		// check that the membership is current, and flag inconsistency with the form data with member
+		submission.ActualCurrMem = membershipDateCheck(
+			memberRecord.MembershipValidFrom, memberRecord.MembershipValidTo, &submission.Date)
+
+		if submission.ActualCurrMem != submission.RequestCurrMem {
+			// email me on invalid membership incase it's a new member
+			err2 := fmt.Errorf("membership check for %s %s failed", memberRecord.FirstName, memberRecord.LastName)
+
+			// update
+			err = trainTable.Put(submission, formData.SubmissionID)
+			if err != nil {
+				err2 = errors.Join(err2, err)
+			}
+			// TODO
+			// Email membership inconsistency
+			//emailHandler.SendEmail(memberRecord.Email,
+
+			return err2
+		}
+
+		// TODO:
+		// check that a training entry for the same date/time has not already been received
+		// including the two submissions
+
+		// TODO:
+		// check that number of requested (and paid) entries per session and reject the entry if
+		// the numbers are two high
+
+		// email member to confirm that their training entry has been received, pending payment
+		// TODO pending payment
+		emailHandler.SendConfirm(memberRecord, submission)
+
+		/* TODO remove:
+		records, err := trainTable.GetAll()
+		if err != nil {
+			return err
+		}
+
+		_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
+		for _, record := range records {
+			_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
+		}
+		*/
 	}
-
-	// TODO:
-	// check that a training request for the same date/time has not already been received
-
-	// TODO:
-	// check that number of requested (and paid) entries per session and reject the request if
-	// the numbers are two high
-
-	// email member to confirm that their training request has been received, pending payment
-	// TODO pending payment
-	emailHandler.SendConfirm(memberRecord, &submission)
-
-	/* TODO remove:
-	records, err := trainTable.GetAll()
-	if err != nil {
-		return err
-	}
-
-	_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
-	for _, record := range records {
-		_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
-	}
-	*/
 
 	return nil
 }

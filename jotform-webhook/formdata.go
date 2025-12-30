@@ -34,7 +34,7 @@ func (f *FormData) DebugString() string {
 			"FormTitle: %s; "+
 			"SubmissionID: %s; "+
 			"Username: %s; "+
-			"IP: %s, ",
+			"IP: %s; ",
 		f.FormTitle,
 		f.SubmissionID,
 		f.Username,
@@ -44,20 +44,19 @@ func (f *FormData) DebugString() string {
 	switch rr := f.RawRequest.(type) {
 
 	case TrainingRawRequest:
-		return header + fmt.Sprintf(
-			"Training Form: "+
-				"Member: %s; "+
-				"Horse: %s; "+
-				"Session: %s (%d mins); "+
-				"Venue: %s; "+
-				"Amount: %s",
-			rr.MembershipNumber,
-			rr.HorseName,
-			rr.SelectSession.Date.Format(time.RFC1123),
-			rr.SelectSession.Duration,
-			rr.SelectedVenue,
-			rr.Amount,
-		)
+		out := header + fmt.Sprintf("Total: %s; PaymentRef: %s; ", rr.TotalAmount, rr.PaymentReference)
+		for i, e := range rr.Entries {
+			out += fmt.Sprintf(
+				"Entry %d: %s %s %s %s %s; ",
+				i+1,
+				e.MembershipNumber,
+				e.HorseName,
+				e.Venue,
+				e.SelectSession.StartLocal.Format(time.RFC1123),
+				e.Amount,
+			)
+		}
+		return out
 
 	case TrainingAdminRawRequest:
 		return header + fmt.Sprintf(

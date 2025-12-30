@@ -31,7 +31,7 @@ func (m MemberRecord) String() string {
 	}
 
 	return fmt.Sprintf(
-		"MemberRecord{FirstName=%q, LastName=%q, DOB=%s, SexAtBirth=%q, Email=%q, MemberNumber=%q, Status=%q, ValidFrom=%s, ValidTo=%s, MembershipType=%q}",
+		"MemberRecord{FirstName=%q, LastName=%q, DOB=%s, SexAtBirth=%q, Email=%q, MemberNumber=%q, Status=%q, ValidFrom=%s, ValidTo=%s, CurrentMembershipSelection=%q}",
 		m.FirstName,
 		m.LastName,
 		formatDate(m.DateOfBirth),

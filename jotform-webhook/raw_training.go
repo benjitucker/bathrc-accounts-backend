@@ -3,44 +3,122 @@ package jotform_webhook
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
-type SelectSession struct {
-	Implementation string    `json:"implementation"`
-	Date           time.Time `json:"date"`
-	Duration       int       `json:"duration"`
-	Timezone       string    `json:"timezone"`
+type sessionJSON struct {
+	Implementation string `json:"implementation"`
+	Date           string `json:"date"`
+	Duration       string `json:"duration"`
+	Timezone       string `json:"timezone"`
 }
 
-func (s *SelectSession) UnmarshalJSON(b []byte) error {
-	type alias SelectSession
+type Session struct {
+	StartLocal time.Time
+	Duration   time.Duration
+	Timezone   string
+}
 
-	aux := &struct {
-		Date     string `json:"date"`
-		Duration string `json:"duration"`
-		*alias
-	}{
-		alias: (*alias)(s),
-	}
+type Entry struct {
+	MembershipNumber           string
+	CurrentMembershipSelection []string
+	HorseName                  string
+	SelectSession              Session
+	Venue                      string
+	Amount                     string
+}
 
-	if err := json.Unmarshal(b, &aux); err != nil {
+type TrainingRawRequest struct {
+	SubmitDate       UnixMillis `json:"submitDate"`
+	BuildDate        UnixMillis `json:"buildDate"`
+	PaymentRef       string     `json:"q53_paymentRef"`
+	PaymentReference string     `json:"q12_typeA"`
+	TotalAmount      string     `json:"q58_totalAmount"`
+
+	Entries []Entry `json:"-"`
+}
+
+func (r *TrainingRawRequest) UnmarshalJSON(b []byte) error {
+	type alias TrainingRawRequest
+	aux := (*alias)(r)
+
+	// First unmarshal standard fields
+	if err := json.Unmarshal(b, aux); err != nil {
 		return err
 	}
 
-	// JotForm format: "YYYY-MM-DD HH:MM"
-	t, err := time.Parse("2006-01-02 15:04", aux.Date)
-	if err != nil {
-		return fmt.Errorf("invalid session date: %w", err)
-	}
-	s.Date = t
-
-	// Convert duration to int
-	if _, err := fmt.Sscan(aux.Duration, &s.Duration); err != nil {
-		return fmt.Errorf("invalid duration: %w", err)
+	// Then parse the entry fields
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(b, &m); err != nil {
+		return err
 	}
 
-	return nil
+	r.Entries = []Entry{}
+
+	for i := 0; ; i++ {
+		suffix := ""
+		if i > 0 {
+			suffix = fmt.Sprintf("-%d", i+1)
+		}
+
+		entry := Entry{}
+		hasEntry := false
+
+		for k, v := range m {
+			if strings.HasSuffix(k, "horseName18"+suffix) {
+				hasEntry = true
+				_ = json.Unmarshal(v, &entry.HorseName)
+			}
+
+			if strings.HasSuffix(k, "brcMembership15"+suffix) {
+				hasEntry = true
+				_ = json.Unmarshal(v, &entry.MembershipNumber)
+			}
+
+			if strings.HasSuffix(k, "typeA28"+suffix) {
+				hasEntry = true
+				_ = json.Unmarshal(v, &entry.CurrentMembershipSelection)
+			}
+
+			if strings.HasSuffix(k, "amount"+suffix) {
+				hasEntry = true
+				_ = json.Unmarshal(v, &entry.Amount)
+			}
+
+			if strings.HasSuffix(k, "selectedVenue"+suffix) {
+				hasEntry = true
+				_ = json.Unmarshal(v, &entry.Venue)
+			}
+
+			if strings.HasSuffix(k, "selectSession"+suffix) {
+				hasEntry = true
+				var sess sessionJSON
+				_ = json.Unmarshal(v, &sess)
+
+				// Parse session date+timezone
+				start, err := ParseSessionDate(sess.Date, sess.Timezone)
+				if err != nil {
+					return fmt.Errorf("session %d date parse failed: %w", i+1, err)
+				}
+
+				var mins int
+				fmt.Sscan(sess.Duration, &mins)
+				entry.SelectSession = Session{
+					StartLocal: start,
+					Duration:   time.Duration(mins) * time.Minute,
+					Timezone:   sess.Timezone,
+				}
+			}
+		}
+
+		if !hasEntry {
+			// Exit here, no more entries
+			return nil
+		}
+
+		r.Entries = append(r.Entries, entry)
+	}
 }
 
 // StringList handles JSON that may be a string or an array of strings.
@@ -68,22 +146,6 @@ func (s *StringList) UnmarshalJSON(data []byte) error {
 	}
 
 	return fmt.Errorf("StringList: value must be string or []string, got: %s", string(data))
-}
-
-type TrainingRawRequest struct {
-	Slug                       string        `json:"slug"`
-	SubmitSource               string        `json:"submitSource"`
-	SubmitDate                 UnixMillis    `json:"submitDate"`
-	BuildDate                  UnixMillis    `json:"buildDate"`
-	MembershipNumber           string        `json:"q15_brcMembership15"`
-	HorseName                  string        `json:"q18_horseName18"`
-	SelectSession              SelectSession `json:"q5_selectSession"`
-	CurrentMembershipSelection StringList    `json:"q28_typeA28"`
-	SelectedVenue              string        `json:"q34_selectedVenue"`
-	PaymentReference           string        `json:"q12_typeA"`
-	Amount                     string        `json:"q31_amount"`
-	Preview                    string        `json:"preview"`
-	Path                       string        `json:"path"`
 }
 
 func (TrainingRawRequest) FormKind() string {

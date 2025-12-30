@@ -23,6 +23,7 @@ type TrainingSubmission struct {
 	FoundMemberRecord         bool      `dynamodbav:"foundMemberRecord"`
 	AlreadyBooked             bool      `dynamodbav:"alreadyBooked"`
 	AlreadyBookedSubmissionId bool      `dynamodbav:"alreadyBookedSubmissionId"`
+	LinkedSubmissionIds       []string  `dynamodbav:"linkedSubmissionIds"`
 }
 
 type TrainingSubmissionTable struct {

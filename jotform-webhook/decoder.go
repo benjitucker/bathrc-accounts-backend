@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"strconv"
 	"strings"
 )
 
@@ -67,6 +68,18 @@ func DecodeBase64Multipart(base64Payload string) (*FormData, error) {
 			return nil, err
 		}
 		form.RawRequest = rr
+
+		// Validate the total amount
+		total := 0.0
+		for _, entry := range rr.Entries {
+			amount, _ := strconv.ParseFloat(entry.Amount, 64)
+			total = total + amount
+		}
+		totalAmount, _ := strconv.ParseFloat(rr.TotalAmount, 64)
+		if total != totalAmount {
+			return nil, fmt.Errorf("inconsistent amounts in training form: %f != %f",
+				total, totalAmount)
+		}
 
 	case "Training Administration":
 		var rr TrainingAdminRawRequest

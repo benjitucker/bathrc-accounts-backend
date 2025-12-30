@@ -38,15 +38,15 @@ Content-Disposition: form-data; name="rawRequest"
 		t.Fatalf("rawRequest type mismatch")
 	}
 
-	if rr.MembershipNumber != "1234567" {
+	if rr.Entries[0].MembershipNumber != "1234567" {
 		t.Errorf("membership mismatch")
 	}
 
-	if rr.SelectSession.Duration != 60 {
+	if rr.Entries[0].SelectSession.Duration != 60 {
 		t.Errorf("duration not parsed")
 	}
 
-	if rr.SelectSession.Date.IsZero() {
+	if rr.Entries[0].SelectSession.StartLocal.IsZero() {
 		t.Errorf("session date not parsed")
 	}
 }

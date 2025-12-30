@@ -12,7 +12,7 @@ func TestDebugString_Safe(t *testing.T) {
 		Username:     "test",
 		IP:           "127.0.0.1",
 		RawRequest: TrainingRawRequest{
-			MembershipNumber: "123",
+			PaymentReference: "ABCD",
 		},
 	}
 
