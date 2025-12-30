@@ -88,6 +88,10 @@ func handleTransactions(records []*db.TransactionRecord) error {
 	// Match received payments for training sessions and email members confirmation of received payment
 	// if they have not already been sent
 
+	// TODO:
+	// Check the number of paid entries per session and reject the latest ones if the numbers are too
+	// high
+
 	// TODO : remove this test code
 	records, err = transactionTable.GetAllOfTypeRecent("CR", time.Now().Add(time.Hour*-200))
 	if err != nil {

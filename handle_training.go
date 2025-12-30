@@ -79,6 +79,10 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 	// TODO:
 	// check that a training request for the same date/time has not already been received
 
+	// TODO:
+	// check that number of requested (and paid) entries per session and reject the request if
+	// the numbers are two high
+
 	// email member to confirm that their training request has been received, pending payment
 	// TODO pending payment
 	emailHandler.SendConfirm(memberRecord, &submission)
