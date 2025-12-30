@@ -31,7 +31,8 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		}
 		amountPence := math.Floor(amount * 100)
 		requestDate := time.Time(request.SubmitDate)
-		currentMembership := len(entry.CurrentMembershipSelection[0]) > 0
+		currentMembership := len(entry.CurrentMembershipSelection) > 0 &&
+			len(entry.CurrentMembershipSelection[0]) > 0
 
 		submissions = append(submissions, &db.TrainingSubmission{
 			Date:                     entry.SelectSession.StartLocal,
