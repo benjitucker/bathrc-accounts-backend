@@ -27,14 +27,17 @@ const (
 )
 
 var (
-	ctx              context.Context
-	logger           log.Logger
-	trainTable       db.TrainingSubmissionTable
-	memberTable      db.MemberTable
-	transactionTable db.TransactionTable
-	jotformClient    *jotform.APIClient
-	emailHandler     *email.EmailHandler
-	ssmClient        *ssm.Client
+	ctx                     context.Context
+	logger                  log.Logger
+	trainTable              db.TrainingSubmissionTable
+	memberTable             db.MemberTable
+	transactionTable        db.TransactionTable
+	jotformClient           *jotform.APIClient
+	emailHandler            *email.EmailHandler
+	ssmClient               *ssm.Client
+	accountNumber, sortCode string
+	testEmail, testEmail2   string
+	testMode                = true // TODO - disable
 )
 
 // TODO - connect to jotform and check for training submissions that have not been processed, for reliability.
@@ -60,7 +63,7 @@ func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyRes
 	}
 
 	if err != nil {
-		emailHandler.SendEmail("ben@churchfarmmonktonfarleigh.co.uk", "jotform webhook: FAIL", err.Error())
+		emailHandler.SendEmail(testEmail, "jotform webhook: FAIL", err.Error())
 	}
 
 	resp := events.APIGatewayProxyResponse{
@@ -154,8 +157,18 @@ func main() {
 		return
 	}
 
-	// Get jotform api key from secret ssm parameter
-	paramName := "bathrc-jotform-apikey"
+	jotformClient = jotform.NewJotFormAPIClient(
+		getSecret("bathrc-jotform-apikey"), "json", logLevel == "debug")
+
+	accountNumber = getSecret("bathrc-account-number")
+	sortCode = getSecret("bathrc-sort-code")
+	testEmail = getSecret("test-email-address")
+	testEmail2 = getSecret("test-email-address2")
+
+	lambda.Start(HandleRequest)
+}
+
+func getSecret(paramName string) string {
 	withDecryption := true
 	resp, err := ssmClient.GetParameter(ctx, &ssm.GetParameterInput{
 		Name:           &paramName,
@@ -163,11 +176,7 @@ func main() {
 	})
 	if err != nil {
 		_ = level.Error(logger).Log("failed to get parameter: %v", err)
-		return
+		return ""
 	}
-	jotformApiKey := *resp.Parameter.Value
-
-	jotformClient = jotform.NewJotFormAPIClient(jotformApiKey, "json", logLevel == "debug")
-
-	lambda.Start(HandleRequest)
+	return *resp.Parameter.Value
 }

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	texttmpl "text/template"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
@@ -18,8 +19,7 @@ import (
 )
 
 const (
-	sender   = "training@bathridingclub.co.uk"
-	testMode = true
+	sender = "training@bathridingclub.co.uk"
 )
 
 //go:embed templates/*
@@ -104,9 +104,6 @@ func NewEmailHandler(ctx context.Context, sesClient *ses.Client) (*EmailHandler,
 }
 
 func (eh *EmailHandler) SendEmail(recipient, subject, body string) {
-	if testMode {
-		recipient = "ben@churchfarmmonktonfarleigh.co.uk"
-	}
 
 	// Build the email input
 	input := &ses.SendEmailInput{
@@ -138,10 +135,7 @@ func (eh *EmailHandler) SendEmail(recipient, subject, body string) {
 	fmt.Println("Email sent! Message ID:", *result.MessageId)
 }
 
-func (eh *EmailHandler) SendEmailPretty(recipient, templateName string, templateData any) {
-	if testMode {
-		recipient = "ben@churchfarmmonktonfarleigh.co.uk"
-	}
+func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string, templateData any) {
 
 	// Render templates
 	subject, htmlBody, textBody, err := eh.Render(templateName, templateData)
@@ -154,9 +148,6 @@ func (eh *EmailHandler) SendEmailPretty(recipient, templateName string, template
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	from := sender
-	to := recipient
 
 	// Replace placeholder in HTML if needed
 	// Ensure your template has: <img src="cid:logo123" alt="Logo">
@@ -172,8 +163,8 @@ func (eh *EmailHandler) SendEmailPretty(recipient, templateName string, template
 	var raw bytes.Buffer
 
 	// ---------- HEADERS ----------
-	raw.WriteString("From: " + from + "\r\n")
-	raw.WriteString("To: " + to + "\r\n")
+	raw.WriteString("From: " + sender + "\r\n")
+	raw.WriteString("To: " + strings.Join(recipients, ", ") + "\r\n")
 	raw.WriteString("Subject: " + subject + "\r\n")
 	raw.WriteString("MIME-Version: 1.0\r\n")
 	raw.WriteString("Content-Type: multipart/mixed; boundary=\"" + mixedBoundary + "\"\r\n")
@@ -224,7 +215,7 @@ func (eh *EmailHandler) SendEmailPretty(recipient, templateName string, template
 
 	input := &ses.SendRawEmailInput{
 		Source:       aws.String(sender), // sender
-		Destinations: []string{recipient},
+		Destinations: recipients,
 		RawMessage: &types.RawMessage{
 			Data: raw.Bytes(),
 		},
@@ -264,4 +255,37 @@ func (eh *EmailHandler) Render(templateName string, data any) (subject, html, te
 	}
 
 	return subject, html, text, nil
+}
+
+func formatCustomDate(t time.Time) string {
+	hour := t.Hour() % 12
+	if hour == 0 {
+		hour = 12
+	}
+	minute := t.Minute()
+	ampm := t.Format("PM")
+
+	return fmt.Sprintf("%s %s %s at %d:%d%d %s",
+		t.Format("Monday"),
+		dayWithSuffix(t.Day()),
+		t.Format("January"),
+		hour, minute/10, minute%10,
+		ampm,
+	)
+}
+
+func dayWithSuffix(day int) string {
+	if day >= 11 && day <= 13 {
+		return fmt.Sprintf("%dth", day)
+	}
+	switch day % 10 {
+	case 1:
+		return fmt.Sprintf("%dst", day)
+	case 2:
+		return fmt.Sprintf("%dnd", day)
+	case 3:
+		return fmt.Sprintf("%drd", day)
+	default:
+		return fmt.Sprintf("%dth", day)
+	}
 }

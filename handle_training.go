@@ -17,9 +17,9 @@ func makeId(formData *jotform_webhook.FormData, entryIndex int) string {
 
 func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_webhook.TrainingRawRequest) error {
 
-	submissions := make([]*db.TrainingSubmission, 2)
+	var submissions []*db.TrainingSubmission
 
-	for i, entry := range request.Entries {
+	for _, entry := range request.Entries {
 
 		amount, err := strconv.ParseFloat(entry.Amount, 64)
 		if err != nil {
@@ -29,12 +29,11 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		requestDate := time.Time(request.SubmitDate)
 		currentMembership := len(entry.CurrentMembershipSelection[0]) > 0
 
-		submissions[i] = &db.TrainingSubmission{
+		submissions = append(submissions, &db.TrainingSubmission{
 			Date:              entry.SelectSession.StartLocal,
 			DateUnix:          entry.SelectSession.StartLocal.Unix(),
 			MembershipNumber:  strings.Trim(entry.MembershipNumber, " "),
 			RequestCurrMem:    currentMembership,
-			ActualCurrMem:     currentMembership, // Initially assume its correct
 			Venue:             entry.Venue,
 			AmountPence:       int64(amountPence),
 			HorseName:         entry.HorseName,
@@ -43,8 +42,10 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 			PaymentReference:  request.PaymentReference,
 			FoundMemberRecord: true,
 			AlreadyBooked:     false,
-		}
+		})
 	}
+
+	memberRecords := make([]*db.MemberRecord, 2)
 
 	for entryIndex, submission := range submissions {
 		// fill the cross-references
@@ -63,15 +64,18 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		if memberRecord == nil || err != nil {
 			// email me on invalid membership number incase it's a new member
 			err2 := fmt.Errorf("no membership record for %s: %w", submission.MembershipNumber, err)
+			emailHandler.SendEmail(testEmail, "jotform webhook: FAIL", err2.Error())
 
 			submission.FoundMemberRecord = false
 			// update
 			err = trainTable.Put(submission, formData.SubmissionID)
 			if err != nil {
 				err2 = errors.Join(err2, err)
+				return err2
 			}
-			return err2
+			continue
 		}
+		memberRecords[entryIndex] = memberRecord
 
 		// check that the membership is current, and flag inconsistency with the form data with member
 		submission.ActualCurrMem = membershipDateCheck(
@@ -96,6 +100,8 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		// TODO:
 		// check that a training entry for the same date/time has not already been received
 		// including the two submissions
+		// Check for submissions by the same member on the same date and include that information in
+		// the email
 
 		// TODO:
 		// check that number of requested (and paid) entries per session and reject the entry if
@@ -103,7 +109,11 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 
 		// email member to confirm that their training entry has been received, pending payment
 		// TODO pending payment
-		emailHandler.SendConfirm(memberRecord, submission)
+		// if not all members are found, dont send an email at theis time at all
+		if testMode {
+			memberRecord.Email = testEmail
+		}
+		emailHandler.SendReceivedRequest(memberRecords, submissions)
 
 		/* TODO remove:
 		records, err := trainTable.GetAll()
