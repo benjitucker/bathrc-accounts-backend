@@ -39,7 +39,7 @@ func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissi
 		eh.SendEmailPretty([]string{member.Email}, "received-request", &ReceivedRequestData{
 			FirstName:     member.FirstName,
 			Venue:         submission.Venue,
-			TrainingDate:  formatCustomDate(submission.Date),
+			TrainingDate:  formatCustomDateTime(submission.Date),
 			AccountNumber: eh.params.AccountNumber,
 			SortCode:      eh.params.SortCode,
 			Reference:     submission.PaymentReference,
@@ -63,14 +63,14 @@ func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissi
 		eh.SendEmailPretty(recipients, "received-request2", &ReceivedRequest2Data{
 			FirstName:     firstNames,
 			Venue:         submissions[0].Venue,
-			TrainingDate:  formatCustomDate(submissions[0].Date),
+			TrainingDate:  formatCustomDateTime(submissions[0].Date),
 			Venue2:        submissions[1].Venue,
-			TrainingDate2: formatCustomDate(submissions[1].Date),
+			TrainingDate2: formatCustomDateTime(submissions[1].Date),
 			AccountNumber: eh.params.AccountNumber,
 			SortCode:      eh.params.SortCode,
 			Reference:     submissions[0].PaymentReference,
 			Amount:        formatAmount(submissions[0].AmountPence + submissions[1].AmountPence),
-			PayDate:       formatCustomDate(earliestDate(submissions[0].PayByDate, submissions[1].PayByDate)),
+			PayDate:       formatCustomDateTime(earliestDate(submissions[0].PayByDate, submissions[1].PayByDate)),
 		})
 	} else {
 		// TODO - more that 2 entry submission

@@ -264,6 +264,14 @@ func (eh *EmailHandler) Render(templateName string, data any) (subject, html, te
 }
 
 func formatCustomDate(t time.Time) string {
+	return fmt.Sprintf("%s %s %s",
+		t.Format("Monday"),
+		dayWithSuffix(t.Day()),
+		t.Format("January"),
+	)
+}
+
+func formatCustomDateTime(t time.Time) string {
 	hour := t.Hour() % 12
 	if hour == 0 {
 		hour = 12
