@@ -46,6 +46,7 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 	}
 
 	memberRecords := make([]*db.MemberRecord, 2)
+	sendReceivedRequestEmail := true
 
 	for entryIndex, submission := range submissions {
 		// fill the cross-references
@@ -62,6 +63,9 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		// Check membership number
 		memberRecord, err := memberTable.Get(submission.MembershipNumber)
 		if memberRecord == nil || err != nil {
+			// if not all members are found, dont send an email at this time at all
+			sendReceivedRequestEmail = false
+
 			// email me on invalid membership number incase it's a new member
 			err2 := fmt.Errorf("no membership record for %s: %w", submission.MembershipNumber, err)
 			emailHandler.SendEmail(testEmail, "jotform webhook: FAIL", err2.Error())
@@ -75,6 +79,16 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 			}
 			continue
 		}
+
+		// Use test email addresses if in test mode
+		if testMode {
+			if entryIndex == 0 {
+				memberRecord.Email = testEmail
+			} else {
+				memberRecord.Email = testEmail2
+			}
+		}
+
 		memberRecords[entryIndex] = memberRecord
 
 		// check that the membership is current, and flag inconsistency with the form data with member
@@ -109,11 +123,6 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 
 		// email member to confirm that their training entry has been received, pending payment
 		// TODO pending payment
-		// if not all members are found, dont send an email at theis time at all
-		if testMode {
-			memberRecord.Email = testEmail
-		}
-		emailHandler.SendReceivedRequest(memberRecords, submissions)
 
 		/* TODO remove:
 		records, err := trainTable.GetAll()
@@ -126,6 +135,10 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 			_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
 		}
 		*/
+	}
+
+	if sendReceivedRequestEmail {
+		emailHandler.SendReceivedRequest(memberRecords, submissions)
 	}
 
 	return nil
