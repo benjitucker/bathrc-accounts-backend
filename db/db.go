@@ -35,8 +35,8 @@ type DBItem struct {
 
 func (i DBItem) GetID() string {
 	if i.id == "" {
-		fmt.Printf("ERROR: dbItem at %p has no ID when GetID called", &i)
-		debug.PrintStack()
+		fmt.Printf("ERROR: dbItem at %p has no ID when GetID called\n%s\n", &i,
+			debug.Stack()[:256])
 	}
 	return i.id
 }
