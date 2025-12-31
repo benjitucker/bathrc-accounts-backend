@@ -3,6 +3,7 @@ package main
 import (
 	"benjitucker/bathrc-accounts/db"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -20,6 +21,11 @@ func handleMembers(records []*db.MemberRecord) error {
 	receivedSubmissions, err := trainTable.GetAllOfState(db.ReceivedSubmissionState)
 	if err != nil {
 		return err
+	}
+
+	log.Printf("Got %d received submission records successfully", len(receivedSubmissions))
+	for _, sub := range receivedSubmissions {
+		log.Printf("Received Submission ID %s", sub.GetID())
 	}
 
 	// Update submissions that are in the past
@@ -130,7 +136,7 @@ correct information.
 			// no update to the member record was received so the problem remains. Time to send
 			// the received request message to the member with a warning
 			err = sendEmailsAndUpdate(fmt.Sprintf(
-				`However, we find that your membership runs out before the training session. Please renew your memebrship with Sport80`))
+				`However, we find that your membership runs out before the training session. Please renew your memebrship with Sport80.`))
 			if err != nil {
 				return err
 			}
