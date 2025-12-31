@@ -98,6 +98,7 @@ func getItem[T dbItemIf](t *dbTable, id string) (T, error) {
 	if err != nil {
 		return out, err
 	}
+	out.SetID(id)
 
 	return out, nil
 }
@@ -115,6 +116,16 @@ func queryItems[T dbItemIf](t *dbTable, query *dynamodb.QueryInput) ([]T, error)
 		var pageItems []T
 		if err := attributevalue.UnmarshalListOfMaps(page.Items, &pageItems); err != nil {
 			return nil, err
+		}
+
+		// Put the IDs in
+		var idVals []DBItem
+		if err := attributevalue.UnmarshalListOfMaps(page.Items, &idVals); err != nil {
+			return nil, err
+		}
+
+		for i := range page.Items {
+			pageItems[i].SetID(idVals[i].GetID())
 		}
 
 		result = append(result, pageItems...)
@@ -143,6 +154,16 @@ func scanAllItems[T dbItemIf](t *dbTable) ([]T, error) {
 		var pageItems []T
 		if err := attributevalue.UnmarshalListOfMaps(page.Items, &pageItems); err != nil {
 			return nil, err
+		}
+
+		// Put the IDs in
+		var idVals []DBItem
+		if err := attributevalue.UnmarshalListOfMaps(page.Items, &idVals); err != nil {
+			return nil, err
+		}
+
+		for i := range page.Items {
+			pageItems[i].SetID(idVals[i].GetID())
 		}
 
 		result = append(result, pageItems...)
