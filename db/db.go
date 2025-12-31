@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +34,10 @@ type DBItem struct {
 }
 
 func (i DBItem) GetID() string {
+	if i.id == "" {
+		fmt.Printf("ERROR: dbItem at %p has no ID when GetID called", &i)
+		debug.PrintStack()
+	}
 	return i.id
 }
 
