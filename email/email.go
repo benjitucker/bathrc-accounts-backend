@@ -43,6 +43,7 @@ type EmailHandler struct {
 
 type HandlerParams struct {
 	AccountNumber, SortCode string
+	MonitorEmail            string
 }
 
 func NewEmailHandler(ctx context.Context, sesClient *ses.Client, params HandlerParams) (*EmailHandler, error) {
@@ -114,7 +115,8 @@ func (eh *EmailHandler) SendEmail(recipient, subject, body string) {
 	// Build the email input
 	input := &ses.SendEmailInput{
 		Destination: &types.Destination{
-			ToAddresses: []string{recipient},
+			ToAddresses:  []string{recipient},
+			BccAddresses: []string{eh.params.MonitorEmail},
 		},
 		ReplyToAddresses: []string{"bathridingclub@hotmail.com"},
 		Message: &types.Message{
@@ -171,6 +173,7 @@ func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string
 	// ---------- HEADERS ----------
 	raw.WriteString("From: " + sender + "\r\n")
 	raw.WriteString("To: " + strings.Join(recipients, ", ") + "\r\n")
+	raw.WriteString("Bcc: " + eh.params.MonitorEmail + "\r\n")
 	raw.WriteString("Subject: " + subject + "\r\n")
 	raw.WriteString("MIME-Version: 1.0\r\n")
 	raw.WriteString("Content-Type: multipart/mixed; boundary=\"" + mixedBoundary + "\"\r\n")
@@ -221,7 +224,7 @@ func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string
 
 	input := &ses.SendRawEmailInput{
 		Source:       aws.String(sender), // sender
-		Destinations: recipients,
+		Destinations: append(recipients, eh.params.MonitorEmail),
 		RawMessage: &types.RawMessage{
 			Data: raw.Bytes(),
 		},

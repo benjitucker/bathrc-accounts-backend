@@ -129,10 +129,13 @@ func main() {
 	ddb := dynamodb.NewFromConfig(cfg)
 	sesClient := ses.NewFromConfig(cfg)
 	ssmClient = ssm.NewFromConfig(cfg)
+	testEmail = getSecret("test-email-address")
+	testEmail2 = getSecret("test-email-address2")
 
 	emailHandler, err = email.NewEmailHandler(ctx, sesClient, email.HandlerParams{
 		AccountNumber: getSecret("bathrc-account-number"),
 		SortCode:      getSecret("bathrc-sort-code"),
+		MonitorEmail:  testEmail,
 	})
 	if err != nil {
 		_ = level.Error(logger).Log("unable to open create new email handler: %v", err)
@@ -161,9 +164,6 @@ func main() {
 
 	jotformClient = jotform.NewJotFormAPIClient(
 		getSecret("bathrc-jotform-apikey"), "json", logLevel == "debug")
-
-	testEmail = getSecret("test-email-address")
-	testEmail2 = getSecret("test-email-address2")
 
 	lambda.Start(HandleRequest)
 }
