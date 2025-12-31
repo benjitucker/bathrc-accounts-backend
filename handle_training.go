@@ -3,7 +3,6 @@ package main
 import (
 	"benjitucker/bathrc-accounts/db"
 	"benjitucker/bathrc-accounts/jotform-webhook"
-	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -35,11 +34,11 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 			len(entry.CurrentMembershipSelection[0]) > 0
 
 		submissions = append(submissions, &db.TrainingSubmission{
-			Date:                     entry.SelectSession.StartLocal,
+			SubmissionState:          db.ReceivedSubmissionState,
+			TrainingDate:             entry.SelectSession.StartLocal,
 			DateUnix:                 entry.SelectSession.StartLocal.Unix(),
 			PayByDate:                entry.SelectSession.StartLocal.Add(payBeforeSessionDuration),
-			Paid:                     false,
-			Expired:                  false,
+			PaidFee:                  false,
 			MembershipNumber:         strings.Trim(entry.MembershipNumber, " "),
 			RequestCurrMem:           currentMembership,
 			Venue:                    entry.Venue,
@@ -76,15 +75,14 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 			sendReceivedRequestEmail = false
 
 			// email me on invalid membership number incase it's a new member
-			err2 := fmt.Errorf("no membership record for %s: %w", submission.MembershipNumber, err)
-			emailHandler.SendEmail(testEmail, "jotform webhook: FAIL", err2.Error())
+			emailHandler.SendEmail(testEmail, "Training: REFRESH MEMBERSHIP",
+				fmt.Sprintf("no membership record (%s)", submission.MembershipNumber))
 
 			submission.FoundMemberRecord = false
 			// update
 			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
-				err2 = errors.Join(err2, err)
-				return err2
+				return err
 			}
 			continue
 		}
@@ -100,24 +98,31 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 
 		memberRecords[entryIndex] = memberRecord
 
-		// check that the membership is current, and flag inconsistency with the form data with member
+		// check that the membership is current, send me a message if not. Inconsistency with the form data
+		// will be flagged with member when update membership data is received
 		submission.ActualCurrMem = membershipDateCheck(
-			memberRecord.MembershipValidFrom, memberRecord.MembershipValidTo, &submission.Date)
+			memberRecord.MembershipValidFrom, memberRecord.MembershipValidTo, &submission.TrainingDate)
 
 		if submission.ActualCurrMem != submission.RequestCurrMem {
-			// email me on invalid membership incase it's a new membership
-			err2 := fmt.Errorf("membership check for %s %s failed", memberRecord.FirstName, memberRecord.LastName)
+
+			if submission.RequestCurrMem == true {
+				// if any of the requests claim membership but don't have it, don't send emails at this
+				// time as the membership may have just been renewed
+				sendReceivedRequestEmail = false
+
+				// email me on expired membership incase it's just been renewed
+				emailHandler.SendEmail(testEmail, "Training: REFRESH MEMBERSHIP",
+					fmt.Sprintf("membership check for %s %s (%s) failed",
+						memberRecord.FirstName, memberRecord.LastName, memberRecord.MemberNumber))
+			}
 
 			// update
 			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
-				err2 = errors.Join(err2, err)
+				return err
 			}
-			// TODO
-			// Email membership inconsistency
-			//emailHandler.SendEmail(memberRecord.Email,
 
-			return err2
+			continue
 		}
 
 		// TODO:
@@ -147,7 +152,7 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 	}
 
 	if sendReceivedRequestEmail {
-		emailHandler.SendReceivedRequest(memberRecords, submissions)
+		emailHandler.SendReceivedRequest(memberRecords, submissions, "")
 	} else {
 		for _, submission := range submissions {
 			submission.ReceivedRequestEmailSent = false

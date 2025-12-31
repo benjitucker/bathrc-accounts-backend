@@ -32,7 +32,7 @@ func TestParsePence(t *testing.T) {
 }
 
 func TestParseCSV(t *testing.T) {
-	csvData := []byte(`Date,Type,Description,Amount,Balance
+	csvData := []byte(`TrainingDate,Type,Description,Amount,Balance
 22 Dec 2025,CR,FOG BA BOB FOG,20.00,13141.19
 22 Dec 2025,CR,Spot Payments,-10.01,13121.19`)
 

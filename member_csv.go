@@ -54,7 +54,7 @@ func parseMembersCSV(data []byte) ([]*db.MemberRecord, error) {
 			MembershipType:       get("BATH RIDING CLUB Membership Membership Type"),
 		}
 
-		if dob := parseDate(get("Date of Birth")); dob != nil {
+		if dob := parseDate(get("TrainingDate of Birth")); dob != nil {
 			record.DateOfBirth = dob
 		}
 		if from := parseDate(get("BATH RIDING CLUB Membership Valid From")); from != nil {

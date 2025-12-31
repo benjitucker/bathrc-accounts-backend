@@ -12,6 +12,6 @@ func (eh *EmailHandler) SendConfirm(member *db.MemberRecord, submission *db.Trai
 	eh.SendEmailPretty([]string{member.Email}, "confirm", &ConfirmData{
 		FirstName:    member.FirstName,
 		Venue:        submission.Venue,
-		TrainingDate: formatCustomDateTime(submission.Date),
+		TrainingDate: formatCustomDateTime(submission.TrainingDate),
 	})
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var sampleCSV = []byte(`"First Name","Last Name","Date of Birth","Sex at Birth","Email Address","Individual Membership Member No.","BATH RIDING CLUB Membership Status","BATH RIDING CLUB Membership Valid From","BATH RIDING CLUB Membership Valid To","BATH RIDING CLUB Membership Membership Type"
+var sampleCSV = []byte(`"First Name","Last Name","TrainingDate of Birth","Sex at Birth","Email Address","Individual Membership Member No.","BATH RIDING CLUB Membership Status","BATH RIDING CLUB Membership Valid From","BATH RIDING CLUB Membership Valid To","BATH RIDING CLUB Membership Membership Type"
 Alice,Test,1987-01-23,Female,alice.test@example.com,99703368,Current,2025-06-13,2026-06-13,Senior
 Bob,Example,,,bob.example@example.com,23023131,,,,
 Charlie,Sample,2012-01-23,Male,charlie.sample@example.com,99692206,Lapsed,2024-01-03,2025-01-03,Junior`)
@@ -60,7 +60,7 @@ func TestParseMembersCSV_EmptyCSV(t *testing.T) {
 }
 
 func TestParseMembersCSV_InvalidDate(t *testing.T) {
-	csvData := []byte(`"First Name","Last Name","Date of Birth"
+	csvData := []byte(`"First Name","Last Name","TrainingDate of Birth"
 Test,User,not-a-date`)
 
 	members, err := parseMembersCSV(csvData)
