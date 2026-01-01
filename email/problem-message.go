@@ -10,6 +10,11 @@ type ProblemMessageData struct {
 }
 
 func (eh *EmailHandler) SendProblemMessage(members []*db.MemberRecord, submission *db.TrainingSubmission, description string) {
+	if len(members) == 0 {
+		fmt.Printf("Cannot send email, no valid membership numbers to send them too")
+		return
+	}
+
 	// Assume max entry 2 submission
 	var recipients []string
 	var firstNames string
