@@ -58,7 +58,7 @@ func handleMembers(records []*db.MemberRecord) error {
 				// Send email to members of linked submissions warning that this
 				// membership number is invalid, if the linked submission are valid themselves
 				emailHandler.SendProblemMessage(linkedMemberRecords, submission, fmt.Sprintf(`
-The additional session cound not be processed because the membership number %s is not valid. This means
+The additional session cannot be processed because the membership number %s is not valid. This means
 that no sessions have been booked for you. Please submit a new training request for all sessions with the
 correct information.
 `, submission.MembershipNumber))
