@@ -28,5 +28,15 @@ jobs:
         with:
           go-version: '1.24'
 
+      - name: Wait for DynamoDB Local
+        run: |
+          echo "Waiting for DynamoDB Local to be ready..."
+          until curl -s http://localhost:8000; do sleep 1; done
+          echo "DynamoDB Local is ready!"
+
       - name: Run Tests
+        env:
+          AWS_REGION: us-west-2
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
         run: go test ./...
