@@ -13,7 +13,7 @@ import (
 
 const (
 	recentTransactionsDuration = time.Hour * 24 * 30 // 30 days
-	latePaymentsDuration       = time.Hour * 24 * 60 // 60 days
+	latePaymentsDuration       = time.Hour * 24 * 90 // 90 days
 )
 
 func formatAmount(amountPence int64) string {
@@ -48,7 +48,7 @@ func handleTransactions(records []*db.TransactionRecord) error {
 		return err
 	}
 
-	// Get all paid training submissions for sessions in the last 60 days
+	// Get all paid training submissions for sessions in the last 90 days
 	paidSubmissions, err := trainTable.GetAllOfStateRecent(db.PaidSubmissionState, time.Now().Add(-latePaymentsDuration))
 	if err != nil {
 		return err
