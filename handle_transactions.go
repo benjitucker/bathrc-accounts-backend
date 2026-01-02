@@ -118,6 +118,7 @@ func handleTransactions(records []*db.TransactionRecord) error {
 
 		var problemTexts []string
 		var totalAmount int64
+		lapsedMembership := false
 		for _, linkedSubmission := range linkedSubmissions {
 			// update state
 			linkedSubmission.PaymentRecordId = matchedRecord.GetID()
@@ -132,10 +133,14 @@ func handleTransactions(records []*db.TransactionRecord) error {
 
 			// check lapsed
 			if linkedSubmission.LapsedMembership {
-				problemTexts = append(problemTexts, fmt.Sprintf(
-					`Your membership runs out before the training session. Please renew your memebrship with Sport80.`))
+				lapsedMembership = true
 			}
 		}
+		if lapsedMembership == true {
+			problemTexts = append(problemTexts, fmt.Sprintf(
+				`Your membership runs out before the training session. Please renew your memebrship with Sport80.`))
+		}
+
 		if totalAmount != matchedRecord.AmountPence {
 			for _, sub := range linkedSubmissions {
 				sub.PaymentDiscrepancy = true
