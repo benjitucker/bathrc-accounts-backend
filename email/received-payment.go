@@ -6,11 +6,11 @@ import (
 )
 
 type ReceivedPaymentData struct {
-	FirstName, Venue, TrainingDate, ExtraText string
+	FirstName, Venue, TrainingDate, ExtraText1, ExtraText2, ExtraText3, ExtraText4 string
 }
 
 type ReceivedPayment2Data struct {
-	FirstName, Venue, TrainingDate, Venue2, TrainingDate2, ExtraText string
+	FirstName, Venue, TrainingDate, Venue2, TrainingDate2, ExtraText1, ExtraText2, ExtraText3, ExtraText4 string
 }
 
 func (eh *EmailHandler) SendReceivedPayment(members []*db.MemberRecord, submissions []*db.TrainingSubmission, problemTexts []string) {
@@ -19,11 +19,19 @@ func (eh *EmailHandler) SendReceivedPayment(members []*db.MemberRecord, submissi
 		return
 	}
 
-	var extraText string
+	var extraText1, extraText2, extraText3, extraText4 string
 	if len(problemTexts) > 0 {
-		extraText = "\nPlease note:"
-		for _, problemText := range problemTexts {
-			extraText = extraText + "\n - " + problemText
+		extraText1 = "Please note:"
+		for i, problemText := range problemTexts {
+			problemText = " - " + problemText
+			switch i {
+			case 0:
+				extraText2 = problemText
+			case 1:
+				extraText3 = problemText
+			case 3:
+				extraText4 = problemText
+			}
 		}
 	}
 
@@ -34,7 +42,10 @@ func (eh *EmailHandler) SendReceivedPayment(members []*db.MemberRecord, submissi
 			FirstName:    member.FirstName,
 			Venue:        submission.Venue,
 			TrainingDate: formatCustomDateTime(submission.TrainingDate),
-			ExtraText:    extraText,
+			ExtraText1:   extraText1,
+			ExtraText2:   extraText2,
+			ExtraText3:   extraText3,
+			ExtraText4:   extraText4,
 		})
 	} else if len(submissions) == 2 {
 		// Assume entry 2 submission
@@ -56,7 +67,10 @@ func (eh *EmailHandler) SendReceivedPayment(members []*db.MemberRecord, submissi
 			TrainingDate:  formatCustomDateTime(submissions[0].TrainingDate),
 			Venue2:        submissions[1].Venue,
 			TrainingDate2: formatCustomDateTime(submissions[1].TrainingDate),
-			ExtraText:     extraText,
+			ExtraText1:    extraText1,
+			ExtraText2:    extraText2,
+			ExtraText3:    extraText3,
+			ExtraText4:    extraText4,
 		})
 	} else {
 		// TODO - more that 2 entry submission
