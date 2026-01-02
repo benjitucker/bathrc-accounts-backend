@@ -135,8 +135,16 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		// check that number of requested (and paid) entries per session and reject the entry if
 		// the numbers are two high
 
-		// email member to confirm that their training entry has been received, pending payment
-		// TODO pending payment
+		// TODO:
+		// When numbers are filled by paid submissions, email anyone that has not paid and explain
+		// they are too late.
+
+		// TODO:
+		// Send payment reminder email to people who have not paid
+
+		// TODO:
+		// Send the list of training submissions (including who has paid) to bathrc@hotmail.co.uk
+		// mid day the day before
 
 		/* TODO remove:
 		records, err := trainTable.GetAll()
