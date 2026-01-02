@@ -33,6 +33,11 @@ func earliestDate(dates ...time.Time) time.Time {
 }
 
 func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissions []*db.TrainingSubmission, extraText string) {
+	if len(members) == 0 {
+		fmt.Printf("Cannot send email, no valid membership numbers to send them too")
+		return
+	}
+
 	if len(submissions) == 1 {
 		member := members[0]
 		submission := submissions[0]

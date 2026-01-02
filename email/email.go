@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	sender = "training@bathridingclub.co.uk"
+	sender  = "training@bathridingclub.co.uk"
+	replyTo = "bathridingclub@hotmail.com"
 )
 
 //go:embed templates/*
@@ -174,6 +175,7 @@ func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string
 	raw.WriteString("From: " + sender + "\r\n")
 	raw.WriteString("To: " + strings.Join(recipients, ", ") + "\r\n")
 	raw.WriteString("Bcc: " + eh.params.MonitorEmail + "\r\n")
+	raw.WriteString("Reply-To: " + replyTo + "\r\n")
 	raw.WriteString("Subject: " + subject + "\r\n")
 	raw.WriteString("MIME-Version: 1.0\r\n")
 	raw.WriteString("Content-Type: multipart/mixed; boundary=\"" + mixedBoundary + "\"\r\n")

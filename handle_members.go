@@ -126,6 +126,7 @@ correct information.
 
 			// if the membership is now correct we can go ahead and send the received request email
 			if submission.ActualCurrMem == submission.RequestCurrMem {
+				submission.LapsedMembership = false
 				err = sendEmailsAndUpdate("")
 				if err != nil {
 					return err
@@ -193,19 +194,22 @@ func isInPast(sub *db.TrainingSubmission) bool {
 	return sub.TrainingDate.Before(time.Now())
 }
 
+// updateInPastSubmissions and return only the current ones
 func updateInPastSubmissions(submissions []*db.TrainingSubmission) ([]*db.TrainingSubmission, error) {
 	var result []*db.TrainingSubmission
+	var inPast []*db.TrainingSubmission
 	for _, submission := range submissions {
 		if isInPast(submission) {
 			submission.SubmissionState = db.InPastSubmissionState
-			// update
-			err := trainTable.Put(submission, submission.GetID())
-			if err != nil {
-				return nil, err
-			}
+			inPast = append(inPast, submission)
 		} else {
 			result = append(result, submission)
 		}
+	}
+	// update
+	err := trainTable.PutAll(inPast)
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }

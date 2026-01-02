@@ -15,7 +15,7 @@ type TrainingSubmission struct {
 	SubmissionState           string    `dynamodbav:"submissionState"`
 	TrainingDate              time.Time `dynamodbav:"trainingDate"`
 	PayByDate                 time.Time `dynamodbav:"payByDate"`
-	PaidFee                   bool      `dynamodbav:"paidFee"`
+	PaymentRecordId           string    `dynamodbav:"paymentRecordId"`
 	DateUnix                  int64     `dynamodbav:"trainingDateUnix"`
 	MembershipNumber          string    `dynamodbav:"brcMembership"`
 	Venue                     string    `dynamodbav:"trainingVenue"`
@@ -27,10 +27,12 @@ type TrainingSubmission struct {
 	RequestCurrMem            bool      `dynamodbav:"requestCurrMem"`
 	ActualCurrMem             bool      `dynamodbav:"actualCurrMem"`
 	FoundMemberRecord         bool      `dynamodbav:"foundMemberRecord"`
+	LapsedMembership          bool      `dynamodbav:"lapsedMembership"`
 	AlreadyBooked             bool      `dynamodbav:"alreadyBooked"`
 	AlreadyBookedSubmissionId bool      `dynamodbav:"alreadyBookedSubmissionId"`
 	LinkedSubmissionIds       []string  `dynamodbav:"linkedSubmissionIds"`
 	ReceivedRequestEmailSent  bool      `dynamodbav:"receivedRequestEmailSent"`
+	PaymentDiscrepancy        bool      `dynamodbav:"paymentDiscrepancy"`
 }
 
 // State Machine

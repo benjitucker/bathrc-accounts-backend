@@ -34,22 +34,23 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 			len(entry.CurrentMembershipSelection[0]) > 0
 
 		submissions = append(submissions, &db.TrainingSubmission{
-			SubmissionState:          db.ReceivedSubmissionState,
-			TrainingDate:             entry.SelectSession.StartLocal,
-			DateUnix:                 entry.SelectSession.StartLocal.Unix(),
-			PayByDate:                entry.SelectSession.StartLocal.Add(payBeforeSessionDuration),
-			PaidFee:                  false,
-			MembershipNumber:         strings.Trim(entry.MembershipNumber, " "),
-			RequestCurrMem:           currentMembership,
-			Venue:                    entry.Venue,
-			AmountPence:              int64(amountPence),
-			HorseName:                entry.HorseName,
-			RequestDate:              requestDate,
-			RequestDateUnix:          requestDate.Unix(),
-			PaymentReference:         request.PaymentReference,
+			SubmissionState:  db.ReceivedSubmissionState,
+			TrainingDate:     entry.SelectSession.StartLocal,
+			DateUnix:         entry.SelectSession.StartLocal.Unix(),
+			PayByDate:        entry.SelectSession.StartLocal.Add(payBeforeSessionDuration),
+			MembershipNumber: strings.Trim(entry.MembershipNumber, " "),
+			RequestCurrMem:   currentMembership,
+			Venue:            entry.Venue,
+			AmountPence:      int64(amountPence),
+			HorseName:        entry.HorseName,
+			RequestDate:      requestDate,
+			RequestDateUnix:  requestDate.Unix(),
+			PaymentReference: request.PaymentReference,
+			// Assume everything will be ok to start with
 			FoundMemberRecord:        true,
+			LapsedMembership:         false,
 			AlreadyBooked:            false,
-			ReceivedRequestEmailSent: true, // Assume that it will be
+			ReceivedRequestEmailSent: true,
 		})
 	}
 
@@ -106,6 +107,8 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		if submission.ActualCurrMem != submission.RequestCurrMem {
 
 			if submission.RequestCurrMem == true {
+				submission.LapsedMembership = true
+
 				// if any of the requests claim membership but don't have it, don't send emails at this
 				// time as the membership may have just been renewed
 				sendReceivedRequestEmail = false
