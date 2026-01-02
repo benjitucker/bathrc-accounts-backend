@@ -53,9 +53,6 @@ func handleTransactions(records []*db.TransactionRecord) error {
 	}
 
 	log.Printf("Got %d received submission records successfully", len(receivedSubmissions))
-	for _, sub := range receivedSubmissions {
-		log.Printf("Received Submission ID %s", sub.GetID())
-	}
 
 	// Update submissions that are in the past
 	receivedSubmissions, err = updateInPastSubmissions(receivedSubmissions)
@@ -99,6 +96,8 @@ func handleTransactions(records []*db.TransactionRecord) error {
 				bestDistance = distance
 				matchedRecord = record
 			}
+			log.Printf("Received Submission ID %s (ref:%s), payment %s, distance %d",
+				submission.GetID(), submission.PaymentReference, record.String(), distance)
 		}
 
 		// If not exact match, allow just one character of difference

@@ -274,8 +274,6 @@ func updateAllItems[T dbItemIf](t *dbTable, records []T) error {
 					}
 					if err := updateItem(t, record); err != nil {
 						log.Printf("Failed to update record %v: %v", (*record).GetID(), err)
-					} else {
-						log.Printf("Updated record %v successfully", (*record).GetID())
 					}
 
 				case <-t.ctx.Done():
