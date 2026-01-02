@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.24.2
 
 require (
-	github.com/aws/aws-lambda-go v1.51.0
+	github.com/aws/aws-lambda-go v1.51.1
 	github.com/aws/aws-sdk-go-v2 v1.41.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.3
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.29
@@ -15,7 +15,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.67.7
 	github.com/go-kit/log v0.2.1
 	github.com/gogf/gf/v2 v2.9.7
-	github.com/pmezard/go-difflib v1.0.0
 )
 
 require (
