@@ -13,6 +13,7 @@ import (
 
 const (
 	recentTransactionsDuration = time.Hour * 24 * 30 // 30 days
+	latePaymentsDuration       = time.Hour * 24 * 60 // 60 days
 )
 
 func formatAmount(amountPence int64) string {
@@ -41,13 +42,14 @@ func handleTransactions(records []*db.TransactionRecord) error {
 		return err
 	}
 
-	// Get all the training submissions
+	// Get all unpaid training submissions
 	receivedSubmissions, err := trainTable.GetAllOfState(db.ReceivedSubmissionState)
 	if err != nil {
 		return err
 	}
 
-	paidSubmissions, err := trainTable.GetAllOfState(db.PaidSubmissionState)
+	// Get all paid training submissions for sessions in the last 60 days
+	paidSubmissions, err := trainTable.GetAllOfStateRecent(db.PaidSubmissionState, time.Now().Add(-latePaymentsDuration))
 	if err != nil {
 		return err
 	}
@@ -65,10 +67,13 @@ func handleTransactions(records []*db.TransactionRecord) error {
 	}
 
 	for _, submission := range receivedSubmissions {
-		if submission.SubmissionState != db.ReceivedSubmissionState {
+		if submission.PaymentRecordId != "" {
 			// Could have been updated already as it is linked
 			continue
 		}
+
+		// Note, continue to process submissions for past events so that we can receive payments
+		// after the event
 
 		var matchedRecord *db.TransactionRecord
 		bestDistance := 1000
@@ -116,7 +121,11 @@ func handleTransactions(records []*db.TransactionRecord) error {
 		for _, linkedSubmission := range linkedSubmissions {
 			// update state
 			linkedSubmission.PaymentRecordId = matchedRecord.GetID()
-			linkedSubmission.SubmissionState = db.PaidSubmissionState
+
+			// It could be a past submission so in that case don't update to paid state
+			if linkedSubmission.SubmissionState == db.ReceivedSubmissionState {
+				linkedSubmission.SubmissionState = db.PaidSubmissionState
+			}
 
 			// calc total for check
 			totalAmount = totalAmount + linkedSubmission.AmountPence
