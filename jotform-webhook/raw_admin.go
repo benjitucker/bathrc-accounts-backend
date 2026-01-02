@@ -16,6 +16,9 @@ type TrainingAdminRawRequest struct {
 	FileServer    string     `json:"file_server"`
 	UploadURLs    []string   `json:"uploadStatement"`
 	Path          string     `json:"path"`
+
+	// For test:
+	ExtraCSV *string `json:"extraCsv"`
 }
 
 func (TrainingAdminRawRequest) FormKind() string {

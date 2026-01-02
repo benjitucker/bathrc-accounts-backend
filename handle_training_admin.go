@@ -28,6 +28,11 @@ func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook
 		return err
 	}
 
+	// for test
+	if request.ExtraCSV != nil {
+		uploadedCSVData = append(uploadedCSVData, []byte(*request.ExtraCSV)...)
+	}
+
 	transactions, err := parseTransactionsCSV(uploadedCSVData)
 	if err == nil {
 		return handleTransactions(transactions)

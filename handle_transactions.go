@@ -32,10 +32,6 @@ func handleTransactions(records []*db.TransactionRecord) error {
 	_ = level.Debug(logger).Log("msg", "Handle Request", "added/updated transactions", len(records))
 
 	// TODO:
-	// Match received payments for training sessions and email members confirmation of received payment
-	// if they have not already been sent
-
-	// TODO:
 	// Check the number of paid entries per session and reject the latest ones if the numbers are too
 	// high
 
