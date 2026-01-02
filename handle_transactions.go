@@ -112,20 +112,6 @@ func handleTransactions(records []*db.TransactionRecord) error {
 			return err
 		}
 
-		// local function to send received payment email and update db state
-		sendEmailsAndUpdate := func(problemTexts []string) error {
-			if len(linkedMemberRecords) > 0 {
-				emailHandler.SendReceivedPayment(linkedMemberRecords, linkedSubmissions, problemTexts)
-
-				// update linked submissions
-				err = trainTable.PutAll(linkedSubmissions)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-
 		var problemTexts []string
 		var totalAmount int64
 		for _, linkedSubmission := range linkedSubmissions {
@@ -152,7 +138,11 @@ func handleTransactions(records []*db.TransactionRecord) error {
 				formatAmount(totalAmount), formatAmount(matchedRecord.AmountPence)))
 		}
 
-		err = sendEmailsAndUpdate(problemTexts)
+		// send received payment emails
+		emailHandler.SendReceivedPayment(linkedMemberRecords, linkedSubmissions, problemTexts)
+
+		// update linked submissions
+		err = trainTable.PutAll(linkedSubmissions)
 		if err != nil {
 			return err
 		}
