@@ -55,6 +55,7 @@ func (t *MemberTable) Open(ctx context.Context, ddb *dynamodb.Client) error {
 	t.t.ctx = ctx
 	t.t.ddb = ddb
 	t.t.tableName = "Members"
+	t.cache = make(map[string]*MemberRecord)
 	return nil
 }
 
