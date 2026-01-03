@@ -15,7 +15,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.67.7
 	github.com/go-kit/log v0.2.1
 	github.com/gogf/gf/v2 v2.9.7
-	github.com/pmezard/go-difflib v1.0.0
 )
 
 require (

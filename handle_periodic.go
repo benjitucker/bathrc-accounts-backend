@@ -1,0 +1,189 @@
+package main
+
+import (
+	"benjitucker/bathrc-accounts/db"
+	"fmt"
+	"log"
+	"strings"
+	"time"
+)
+
+// TODO - connect to jotform and check for training submissions that have not been processed, for reliability.
+
+func handleHourly(testMode bool) error {
+	now := time.Now()
+	until := now.Add(time.Hour * 36)
+	if testMode == true {
+		// Extend the summary period out to a month in test mode
+		until = now.Add(time.Hour * 24 * 31)
+	}
+
+	// Email a summary of training submissions to the club email lunchtime on the day before
+	if now.Hour() == 12 || testMode == true {
+
+		err := handleTrainingSummary(now, until)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func formatTime(t time.Time) string {
+	hour := t.Hour() % 12
+	if hour == 0 {
+		hour = 12
+	}
+	minute := t.Minute()
+	ampm := t.Format("PM")
+
+	return fmt.Sprintf("%d:%d%d %s", hour, minute/10, minute%10, ampm)
+}
+
+// TODO common custom formatting code
+func formatCustomDate(t time.Time) string {
+	return fmt.Sprintf("%s %s %s",
+		t.Format("Monday"),
+		dayWithSuffix(t.Day()),
+		t.Format("January"),
+	)
+}
+
+func dayWithSuffix(day int) string {
+	if day >= 11 && day <= 13 {
+		return fmt.Sprintf("%dth", day)
+	}
+	switch day % 10 {
+	case 1:
+		return fmt.Sprintf("%dst", day)
+	case 2:
+		return fmt.Sprintf("%dnd", day)
+	case 3:
+		return fmt.Sprintf("%drd", day)
+	default:
+		return fmt.Sprintf("%dth", day)
+	}
+}
+
+func handleTrainingSummary(now, until time.Time) error {
+
+	// Get all unpaid training submissions for future sessions
+	receivedSubmissions, err := trainTable.GetAllOfStateRecent(db.ReceivedSubmissionState, now)
+	if err != nil {
+		return err
+	}
+
+	// Get all paid training submissions for future sessions
+	paidSubmissions, err := trainTable.GetAllOfStateRecent(db.PaidSubmissionState, now)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Got %d received and %d paid submissions for future sessions",
+		len(receivedSubmissions), len(paidSubmissions))
+
+	err = writeEmails(until,
+		append(paidSubmissions, receivedSubmissions...), memberTable.Get,
+		func(subject, body string) {
+			email := clubEmail
+			if testMode == true {
+				email = testEmail
+			}
+			emailHandler.SendEmail(email, subject, body)
+		})
+
+	return nil
+}
+
+func dateOnly(timeDate time.Time) time.Time {
+	y, m, d := timeDate.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, timeDate.Location())
+}
+
+func writeEmails(until time.Time, submissions []*db.TrainingSubmission,
+	getMember func(id string) (*db.MemberRecord, error),
+	emailer func(subject, body string)) error {
+	var err error
+
+	// Filter into a map of training dates
+	sessionSubmissions := make(map[time.Time]map[time.Time][]*db.TrainingSubmission)
+
+	for _, submission := range submissions {
+		// Check for submissions before 36 hours from now
+		tDate := submission.TrainingDate
+		if tDate.Before(until) {
+
+			dayKey := dateOnly(tDate)
+
+			// Ensure the inner map exists
+			if sessionSubmissions[dayKey] == nil {
+				sessionSubmissions[dayKey] = make(map[time.Time][]*db.TrainingSubmission)
+			}
+
+			// Append to the slice (which can be nil – append handles that safely)
+			sessionSubmissions[dayKey][tDate] =
+				append(sessionSubmissions[dayKey][tDate], submission)
+		}
+	}
+
+	type venueSummary struct {
+		members      map[string]*db.MemberRecord
+		messageLines []string
+	}
+
+	for tDate, daySubs := range sessionSubmissions {
+		summaries := make(map[string]*venueSummary)
+		for tTime, submissions := range daySubs {
+			for _, submission := range submissions {
+				if submission.FoundMemberRecord == false {
+					continue
+				}
+
+				if summaries[submission.Venue] == nil {
+					summaries[submission.Venue] = &venueSummary{
+						members:      map[string]*db.MemberRecord{},
+						messageLines: []string{formatTime(tTime), ""},
+					}
+				}
+
+				member := summaries[submission.Venue].members[submission.MembershipNumber]
+				if member == nil {
+					member, err = getMember(submission.MembershipNumber)
+					if err != nil {
+						return err
+					}
+					summaries[submission.Venue].members[submission.MembershipNumber] = member
+				}
+
+				notPaidString := ""
+				if submission.PaymentRecordId == "" {
+					notPaidString = " *NOT PAID*"
+				} else if submission.PaymentDiscrepancy == true {
+					notPaidString = " *Incorrect Payment*"
+				}
+				summaries[submission.Venue].messageLines = append(summaries[submission.Venue].messageLines,
+					fmt.Sprintf(" %s %s riding %s%s",
+						member.FirstName, member.LastName, submission.HorseName, notPaidString))
+			}
+		}
+
+		// Send an email with the summary for each training date/venue
+		for venue, summary := range summaries {
+			var builder strings.Builder
+			_, _ = fmt.Fprintf(&builder, "Training requests summary for %s sessions\n\n", formatCustomDate(tDate))
+
+			for _, line := range summary.messageLines {
+				_, _ = fmt.Fprintf(&builder, "%s\n", line)
+			}
+
+			_, _ = fmt.Fprintf(&builder, "\n\nMember email addresses\n")
+
+			for _, member := range summary.members {
+				_, _ = fmt.Fprintf(&builder, "%s; ", member.Email)
+			}
+
+			emailer(fmt.Sprintf("%s Training Request Summary", venue), builder.String())
+		}
+	}
+	return nil
+}

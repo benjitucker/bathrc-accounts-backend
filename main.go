@@ -6,6 +6,7 @@ import (
 	"benjitucker/bathrc-accounts/jotform"
 	"benjitucker/bathrc-accounts/jotform-webhook"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -40,9 +41,54 @@ var (
 	testMode                 = true // TODO - disable
 )
 
-// TODO - connect to jotform and check for training submissions that have not been processed, for reliability.
+type EventBridgePayload struct {
+	PeriodType string `json:"period"`
+}
 
-func HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handler(ctx context.Context, raw json.RawMessage) (any, error) {
+	// Try EventBridge / CloudWatch Event
+	var eb events.CloudWatchEvent
+	if err := json.Unmarshal(raw, &eb); err == nil && eb.Source != "" {
+		return handleEventBridge(eb)
+	}
+
+	// Try API Gateway first
+	var apiReq events.APIGatewayProxyRequest
+	if err := json.Unmarshal(raw, &apiReq); err == nil && apiReq.HTTPMethod != "" {
+		return handleAPIRequest(apiReq)
+	}
+
+	// Fallback
+	fmt.Println("Unknown event type")
+	return map[string]string{"status": "unhandled"}, nil
+}
+
+func handleEventBridge(eb events.CloudWatchEvent) (any, error) {
+	var payload EventBridgePayload
+	if err := json.Unmarshal(eb.Detail, &payload); err != nil {
+		return nil, err
+	}
+
+	if payload.PeriodType == "hourly" {
+		err := handleHourly(false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if payload.PeriodType == "run-test" {
+		err := handleHourly(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return map[string]string{
+		"message": "ok",
+	}, nil
+}
+
+func handleAPIRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	logger := log.With(logger, "method", "HandleRequest")
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
 
@@ -170,7 +216,7 @@ func main() {
 	jotformClient = jotform.NewJotFormAPIClient(
 		getSecret("bathrc-jotform-apikey"), "json", logLevel == "debug")
 
-	lambda.Start(HandleRequest)
+	lambda.Start(handler)
 }
 
 func getSecret(paramName string) string {
