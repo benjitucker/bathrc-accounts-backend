@@ -112,15 +112,10 @@ func writeEmails(until time.Time, submissions []*db.TrainingSubmission,
 		// Check for submissions before 36 hours from now
 		tDate := submission.TrainingDate
 		if tDate.Before(until) {
-
 			dayKey := dateOnly(tDate)
-
-			// Ensure the inner map exists
 			if sessionSubmissions[dayKey] == nil {
 				sessionSubmissions[dayKey] = make(map[time.Time][]*db.TrainingSubmission)
 			}
-
-			// Append to the slice (which can be nil – append handles that safely)
 			sessionSubmissions[dayKey][tDate] =
 				append(sessionSubmissions[dayKey][tDate], submission)
 		}
