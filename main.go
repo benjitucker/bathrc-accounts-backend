@@ -45,7 +45,8 @@ type EventBridgePayload struct {
 	PeriodType string `json:"period"`
 }
 
-func handler(ctx context.Context, raw json.RawMessage) (any, error) {
+func handler(raw json.RawMessage) (any, error) {
+	fmt.Println(raw.MarshalJSON()) // TODO remove
 	// Try EventBridge / CloudWatch Event
 	var eb events.CloudWatchEvent
 	if err := json.Unmarshal(raw, &eb); err == nil && eb.Source != "" {
