@@ -47,19 +47,16 @@ type EventBridgePayload struct {
 
 func handler(raw json.RawMessage) (any, error) {
 
-	input, _ := raw.MarshalJSON() // TODO remove
-	fmt.Println(string(input))    // TODO remove
-
-	// Try EventBridge / CloudWatch Event
-	var eb events.CloudWatchEvent
-	if err := json.Unmarshal(raw, &eb); err == nil && eb.Source != "" {
-		return handleEventBridge(eb)
+	// Try API Gateway first
+	var apiReq events.LambdaFunctionURLRequest
+	if err := json.Unmarshal(raw, &apiReq); err == nil && apiReq.Body != "" {
+		return handleAPIRequest(apiReq)
 	}
 
-	// Try API Gateway first
-	var apiReq events.APIGatewayProxyRequest
-	if err := json.Unmarshal(raw, &apiReq); err == nil && apiReq.HTTPMethod != "" {
-		return handleAPIRequest(apiReq)
+	// Try EventBridge / CloudWatch Event with our custom request payload
+	var eb EventBridgePayload
+	if err := json.Unmarshal(raw, &eb); err == nil && eb.PeriodType != "" {
+		return handleEventBridge(eb)
 	}
 
 	// Fallback
@@ -67,12 +64,7 @@ func handler(raw json.RawMessage) (any, error) {
 	return map[string]string{"status": "unhandled"}, nil
 }
 
-func handleEventBridge(eb events.CloudWatchEvent) (any, error) {
-	var payload EventBridgePayload
-	if err := json.Unmarshal(eb.Detail, &payload); err != nil {
-		return nil, err
-	}
-
+func handleEventBridge(payload EventBridgePayload) (any, error) {
 	if payload.PeriodType == "hourly" {
 		err := handleHourly(false)
 		if err != nil {
@@ -92,7 +84,7 @@ func handleEventBridge(eb events.CloudWatchEvent) (any, error) {
 	}, nil
 }
 
-func handleAPIRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
 	logger := log.With(logger, "method", "HandleRequest")
 	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
 
@@ -116,7 +108,7 @@ func handleAPIRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxy
 		emailHandler.SendEmail(testEmail, "jotform webhook: FAIL", err.Error())
 	}
 
-	resp := events.APIGatewayProxyResponse{
+	resp := events.LambdaFunctionURLResponse{
 		StatusCode:      200,
 		IsBase64Encoded: false,
 		Headers: map[string]string{
@@ -127,11 +119,11 @@ func handleAPIRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxy
 	return resp, nil
 }
 
-func serverError(err error) (events.APIGatewayProxyResponse, error) {
+func serverError(err error) (events.LambdaFunctionURLResponse, error) {
 	logger := log.With(logger, "method", "serverError")
 	_ = level.Error(logger).Log("err", err)
 
-	return events.APIGatewayProxyResponse{
+	return events.LambdaFunctionURLResponse{
 		StatusCode: http.StatusInternalServerError,
 		Body:       http.StatusText(http.StatusInternalServerError),
 	}, nil
