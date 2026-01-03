@@ -18,11 +18,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 )
 
-const (
-	sender  = "training@bathridingclub.co.uk"
-	replyTo = "bathridingclub@hotmail.com"
-)
-
 //go:embed templates/*
 var templateFS embed.FS
 
@@ -43,8 +38,8 @@ type EmailHandler struct {
 }
 
 type HandlerParams struct {
-	AccountNumber, SortCode string
-	MonitorEmail            string
+	AccountNumber, SortCode                string
+	MonitorEmail, ClubEmail, TrainingEmail string
 }
 
 func NewEmailHandler(ctx context.Context, sesClient *ses.Client, params HandlerParams) (*EmailHandler, error) {
@@ -119,7 +114,7 @@ func (eh *EmailHandler) SendEmail(recipient, subject, body string) {
 			ToAddresses:  []string{recipient},
 			BccAddresses: []string{eh.params.MonitorEmail},
 		},
-		ReplyToAddresses: []string{"bathridingclub@hotmail.com"},
+		ReplyToAddresses: []string{eh.params.ClubEmail},
 		Message: &types.Message{
 			Subject: &types.Content{
 				Charset: aws.String("UTF-8"),
@@ -132,7 +127,7 @@ func (eh *EmailHandler) SendEmail(recipient, subject, body string) {
 				},
 			},
 		},
-		Source: aws.String(sender),
+		Source: aws.String(eh.params.TrainingEmail),
 	}
 
 	// Send the email
@@ -172,10 +167,10 @@ func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string
 	var raw bytes.Buffer
 
 	// ---------- HEADERS ----------
-	raw.WriteString("From: " + sender + "\r\n")
+	raw.WriteString("From: " + eh.params.TrainingEmail + "\r\n")
 	raw.WriteString("To: " + strings.Join(recipients, ", ") + "\r\n")
 	raw.WriteString("Bcc: " + eh.params.MonitorEmail + "\r\n")
-	raw.WriteString("Reply-To: " + replyTo + "\r\n")
+	raw.WriteString("Reply-To: " + eh.params.ClubEmail + "\r\n")
 	raw.WriteString("Subject: " + subject + "\r\n")
 	raw.WriteString("MIME-Version: 1.0\r\n")
 	raw.WriteString("Content-Type: multipart/mixed; boundary=\"" + mixedBoundary + "\"\r\n")
@@ -225,7 +220,7 @@ func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string
 	raw.WriteString("--" + mixedBoundary + "--\r\n")
 
 	input := &ses.SendRawEmailInput{
-		Source:       aws.String(sender), // sender
+		Source:       aws.String(eh.params.TrainingEmail), // sender
 		Destinations: append(recipients, eh.params.MonitorEmail),
 		RawMessage: &types.RawMessage{
 			Data: raw.Bytes(),

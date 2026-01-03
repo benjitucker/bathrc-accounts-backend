@@ -27,16 +27,17 @@ const (
 )
 
 var (
-	ctx                   context.Context
-	logger                log.Logger
-	trainTable            db.TrainingSubmissionTable
-	memberTable           db.MemberTable
-	transactionTable      db.TransactionTable
-	jotformClient         *jotform.APIClient
-	emailHandler          *email.EmailHandler
-	ssmClient             *ssm.Client
-	testEmail, testEmail2 string
-	testMode              = true // TODO - disable
+	ctx                      context.Context
+	logger                   log.Logger
+	trainTable               db.TrainingSubmissionTable
+	memberTable              db.MemberTable
+	transactionTable         db.TransactionTable
+	jotformClient            *jotform.APIClient
+	emailHandler             *email.EmailHandler
+	ssmClient                *ssm.Client
+	clubEmail, trainingEmail string
+	testEmail, testEmail2    string
+	testMode                 = true // TODO - disable
 )
 
 // TODO - connect to jotform and check for training submissions that have not been processed, for reliability.
@@ -129,6 +130,8 @@ func main() {
 	ddb := dynamodb.NewFromConfig(cfg)
 	sesClient := ses.NewFromConfig(cfg)
 	ssmClient = ssm.NewFromConfig(cfg)
+	clubEmail = getSecret("club-email-address")
+	trainingEmail = getSecret("training-email-address")
 	testEmail = getSecret("test-email-address")
 	testEmail2 = getSecret("test-email-address2")
 
@@ -136,6 +139,8 @@ func main() {
 		AccountNumber: getSecret("bathrc-account-number"),
 		SortCode:      getSecret("bathrc-sort-code"),
 		MonitorEmail:  testEmail,
+		ClubEmail:     clubEmail,
+		TrainingEmail: trainingEmail,
 	})
 	if err != nil {
 		_ = level.Error(logger).Log("unable to open create new email handler: %v", err)
