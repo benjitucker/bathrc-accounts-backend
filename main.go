@@ -46,7 +46,10 @@ type EventBridgePayload struct {
 }
 
 func handler(raw json.RawMessage) (any, error) {
-	fmt.Println(raw.MarshalJSON()) // TODO remove
+
+	input, _ := raw.MarshalJSON() // TODO remove
+	fmt.Println(string(input))    // TODO remove
+
 	// Try EventBridge / CloudWatch Event
 	var eb events.CloudWatchEvent
 	if err := json.Unmarshal(raw, &eb); err == nil && eb.Source != "" {
