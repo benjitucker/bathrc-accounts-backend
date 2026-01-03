@@ -46,7 +46,8 @@ func (m MemberRecord) String() string {
 }
 
 type MemberTable struct {
-	t *dbTable
+	t     *dbTable
+	cache map[string]*MemberRecord
 }
 
 func (t *MemberTable) Open(ctx context.Context, ddb *dynamodb.Client) error {
@@ -59,22 +60,32 @@ func (t *MemberTable) Open(ctx context.Context, ddb *dynamodb.Client) error {
 
 func (t *MemberTable) Put(record *MemberRecord) error {
 	record.SetID(record.MemberNumber)
+	t.cache[record.MemberNumber] = record
 	return putItem[*MemberRecord](t.t, record)
 }
 
 func (t *MemberTable) Get(id string) (*MemberRecord, error) {
-	return getItem[*MemberRecord](t.t, id)
+	var err error
+	result := t.cache[id]
+	if result == nil {
+		result, err = getItem[*MemberRecord](t.t, id)
+		t.cache[id] = result
+	}
+	return result, err
 }
 
+/*
 func (t *MemberTable) GetAll() ([]*MemberRecord, error) {
 	return scanAllItems[*MemberRecord](t.t)
 }
+*/
 
 func (t *MemberTable) PutAll(records []*MemberRecord) error {
 
 	// the record id is the member number
 	for _, record := range records {
 		record.SetID(record.MemberNumber)
+		t.cache[record.MemberNumber] = record
 	}
 
 	return updateAllItems(t.t, records)
