@@ -4,8 +4,6 @@ import (
 	"benjitucker/bathrc-accounts/jotform-webhook"
 	"errors"
 	"fmt"
-
-	"github.com/go-kit/log/level"
 )
 
 func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook.TrainingAdminRawRequest) error {
@@ -16,7 +14,6 @@ func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook
 	// process just the first uploaded file, there should only be one
 	if len(request.UploadURLs) == 0 {
 		err = fmt.Errorf("no uploaded files for form %v", form.DebugString())
-		_ = level.Warn(logger).Log("msg", "nothing to do", "err", err)
 		return err
 	}
 
@@ -24,8 +21,7 @@ func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook
 
 	uploadedCSVData, err := jotformClient.GetSubmissionFile(uploadUrl)
 	if err != nil {
-		_ = level.Warn(logger).Log("msg", "failed getting submission file", "err", err)
-		return err
+		return fmt.Errorf("failed getting submission file: %w", err)
 	}
 
 	// for test
@@ -37,16 +33,13 @@ func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook
 	if err == nil {
 		return handleTransactions(transactions)
 	}
-	_ = level.Warn(logger).Log("msg", "transactions parse", "err", err)
-	errs = append(errs, err)
+	errs = append(errs, fmt.Errorf("failed transaction parsing: %w", err))
 
 	members, err := parseMembersCSV(uploadedCSVData)
 	if err == nil {
 		return handleMembers(members)
 	}
-	errs = append(errs, err)
+	errs = append(errs, fmt.Errorf("failed menbers parsing: %w", err))
 
-	err = errors.Join(errs...)
-	_ = level.Warn(logger).Log("msg", "handle admin", "err", err)
-	return err
+	return errors.Join(errs...)
 }

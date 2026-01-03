@@ -148,18 +148,6 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		// TODO:
 		// Send the list of training submissions (including who has paid) to bathrc@hotmail.co.uk
 		// mid day the day before
-
-		/* TODO remove:
-		records, err := trainTable.GetAll()
-		if err != nil {
-			return err
-		}
-
-		_ = level.Debug(logger).Log("msg", "Handle Request", "number of records", len(records))
-		for _, record := range records {
-			_ = level.Debug(logger).Log("msg", "Handle Request", "record from db", record)
-		}
-		*/
 	}
 
 	if sendReceivedRequestEmail {

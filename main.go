@@ -18,8 +18,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 const (
@@ -29,7 +27,6 @@ const (
 
 var (
 	ctx                      context.Context
-	logger                   log.Logger
 	trainTable               db.TrainingSubmissionTable
 	memberTable              db.MemberTable
 	transactionTable         db.TransactionTable
@@ -65,6 +62,8 @@ func handler(raw json.RawMessage) (any, error) {
 }
 
 func handleEventBridge(payload EventBridgePayload) (any, error) {
+	fmt.Printf("Handle Event Bridge, period %s", payload.PeriodType)
+
 	if payload.PeriodType == "hourly" {
 		err := handleHourly(false)
 		if err != nil {
@@ -85,15 +84,14 @@ func handleEventBridge(payload EventBridgePayload) (any, error) {
 }
 
 func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
-	logger := log.With(logger, "method", "HandleRequest")
-	_ = level.Debug(logger).Log("msg", "Handle Request", "body", req.Body)
+	fmt.Printf("Handle API, body %s", req.Body)
 
 	formData, err := jotform_webhook.DecodeBase64Multipart(req.Body)
 	if err != nil {
 		return serverError(err)
 	}
 
-	_ = level.Debug(logger).Log("msg", "Handle Request", "form", formData.DebugString())
+	fmt.Printf("%s", formData.DebugString())
 
 	switch formData.RawRequest.FormKind() {
 	case trainingRequestForm:
@@ -105,6 +103,7 @@ func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctio
 	}
 
 	if err != nil {
+		fmt.Printf("ERROR: %v", err)
 		emailHandler.SendEmail(testEmail, "jotform webhook: FAIL", err.Error())
 	}
 
@@ -120,8 +119,7 @@ func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctio
 }
 
 func serverError(err error) (events.LambdaFunctionURLResponse, error) {
-	logger := log.With(logger, "method", "serverError")
-	_ = level.Error(logger).Log("err", err)
+	fmt.Printf("ERROR: %s", err.Error())
 
 	return events.LambdaFunctionURLResponse{
 		StatusCode: http.StatusInternalServerError,
@@ -131,16 +129,6 @@ func serverError(err error) (events.LambdaFunctionURLResponse, error) {
 
 func main() {
 	ctx = context.Background()
-	logger = log.NewLogfmtLogger(os.Stderr)
-	logger = log.NewSyncLogger(logger)
-	logger = log.With(logger,
-		"service", "bathrc-accounts-backend",
-		"time:", log.DefaultTimestampUTC,
-		"caller", log.DefaultCaller,
-	)
-
-	_ = level.Info(logger).Log("msg", "service started")
-	defer func() { _ = level.Info(logger).Log("msg", "service finished") }()
 
 	flag.Parse()
 
@@ -149,23 +137,9 @@ func main() {
 		logLevel = "debug"
 	}
 
-	switch logLevel {
-	case "debug":
-		logger = level.NewFilter(logger, level.AllowDebug())
-	case "info":
-		logger = level.NewFilter(logger, level.AllowInfo())
-	case "warn":
-		logger = level.NewFilter(logger, level.AllowWarn())
-	case "error":
-		logger = level.NewFilter(logger, level.AllowError())
-	default:
-		logger = level.NewFilter(logger, level.AllowAll())
-		_ = level.Error(logger).Log("msg", "bad logging level, defaulting to all")
-	}
-
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		_ = level.Error(logger).Log("unable to load AWS config: %v", err)
+		fmt.Printf("ERROR: %s", err.Error())
 		return
 	}
 
@@ -185,7 +159,7 @@ func main() {
 		TrainingEmail: trainingEmail,
 	})
 	if err != nil {
-		_ = level.Error(logger).Log("unable to open create new email handler: %v", err)
+		fmt.Printf("ERROR: %s", err.Error())
 		return
 	}
 
@@ -193,19 +167,19 @@ func main() {
 
 	err = trainTable.Open(ctx, ddb)
 	if err != nil {
-		_ = level.Error(logger).Log("unable to open training submissions table: %v", err)
+		fmt.Printf("ERROR: %s", err.Error())
 		return
 	}
 
 	err = memberTable.Open(ctx, ddb)
 	if err != nil {
-		_ = level.Error(logger).Log("unable to open members table: %v", err)
+		fmt.Printf("ERROR: %s", err.Error())
 		return
 	}
 
 	err = transactionTable.Open(ctx, ddb)
 	if err != nil {
-		_ = level.Error(logger).Log("unable to open transaction table: %v", err)
+		fmt.Printf("ERROR: %s", err.Error())
 		return
 	}
 
@@ -222,7 +196,7 @@ func getSecret(paramName string) string {
 		WithDecryption: &withDecryption,
 	})
 	if err != nil {
-		_ = level.Error(logger).Log("failed to get parameter: %v", err)
+		fmt.Printf("ERROR: %s", err.Error())
 		return ""
 	}
 	return *resp.Parameter.Value

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kit/log/level"
 	"github.com/gogf/gf/v2/text/gstr"
 )
 
@@ -30,7 +29,7 @@ func handleTransactions(records []*db.TransactionRecord) error {
 		return err
 	}
 
-	_ = level.Debug(logger).Log("msg", "Handle Request", "added/updated transactions", len(records))
+	fmt.Printf("added/updated %d transactions", len(records))
 
 	// TODO:
 	// Check the number of paid entries per session and reject the latest ones if the numbers are too
