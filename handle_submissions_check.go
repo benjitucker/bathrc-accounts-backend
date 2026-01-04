@@ -36,7 +36,7 @@ func handleSubmissionsCheck(submissions []*db.TrainingSubmission) error {
 		return fmt.Errorf("failed to unmarshal api JSON %s: %w", string(submissionsData), err)
 	}
 
-	fmt.Printf("Successfully got %d submissions made in the last 90 minutes from API\n", len(content))
+	fmt.Printf("Successfully got %d submissions made in the last 4 hours from API\n", len(content))
 
 	// Check for any submissions we do not have in our database
 	for _, apiSubmission := range content {
@@ -53,7 +53,7 @@ func handleSubmissionsCheck(submissions []*db.TrainingSubmission) error {
 			continue
 		}
 
-		fmt.Printf("Submission id: %s was not found in db, need to process this submission",
+		fmt.Printf("Submission id: %s was not found in db, need to process this submission\n",
 			submissionId)
 
 		err = handleTrainingRequest(submissionId, &apiSubmission)
