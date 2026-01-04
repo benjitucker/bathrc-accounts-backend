@@ -142,10 +142,6 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 		// TODO:
 		// When numbers are filled by paid submissions, email anyone that has not paid and explain
 		// they are too late.
-
-		// TODO:
-		// Send the list of training submissions (including who has paid) to bathrc@hotmail.co.uk
-		// mid day the day before
 	}
 
 	if sendReceivedRequestEmail {
