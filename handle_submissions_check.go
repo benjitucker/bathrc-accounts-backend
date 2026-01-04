@@ -11,13 +11,20 @@ import (
 
 const (
 	// TODO hard coded
-	formId = 252725624662359
+	formId          = 252725624662359
+	jotformLocation = "America/New_York"
 )
 
 func handleSubmissionsCheck(submissions []*db.TrainingSubmission) error {
-	// Get info on all submissions made in the last 90 minutes
+	loc, err := time.LoadLocation(jotformLocation)
+	if err != nil {
+		fmt.Println("Error loading location:", err)
+		return nil
+	}
+
+	// Get info on all submissions made in the last 4 hours
 	submissionsData, err := jotformClient.GetFormSubmissions(formId, "0", "100", map[string]string{
-		"created_at:gt": time.Now().Add(-time.Minute * 90).Format("2006-01-02 15:04:05"),
+		"created_at:gt": time.Now().In(loc).Add(-time.Hour * 4).Format("2006-01-02 15:04:05"),
 	}, "created_at")
 	if err != nil {
 		return fmt.Errorf("failed getting form submissions: %w", err)
