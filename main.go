@@ -62,7 +62,7 @@ func handler(raw json.RawMessage) (any, error) {
 }
 
 func handleEventBridge(payload EventBridgePayload) (any, error) {
-	fmt.Printf("Handle Event Bridge, period %s\n", payload.PeriodType)
+	fmt.Printf("Handle Event Bridge, period %s", payload.PeriodType)
 
 	if payload.PeriodType == "hourly" {
 		err := handleHourly(false)
