@@ -164,6 +164,7 @@ func createConditions(offset string, limit string, filter map[string]string, ord
 
 			if err == nil {
 				params["filter"] = string(filterObj)
+				fmt.Printf("jotform request filter: %s", params["filter"])
 			}
 		} else {
 			params[k] = args[k].(string)
