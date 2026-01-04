@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"strings"
@@ -66,7 +67,12 @@ func (client APIClient) newRequest(requestPath string, params interface{}, metho
 	}
 
 	var path = client.BaseURL + "/" + apiVersion + "/" + requestPath
-	return client.newURLRequest(path, params, method)
+	request := client.newURLRequest(path, params, method)
+	reqDump, err := httputil.DumpRequestOut(request, true)
+	if err == nil {
+		fmt.Printf("REQUEST:\n%s", string(reqDump))
+	}
+	return request
 }
 
 func (client APIClient) newURLRequest(path string, params interface{}, method string) *http.Request {
@@ -164,7 +170,6 @@ func createConditions(offset string, limit string, filter map[string]string, ord
 
 			if err == nil {
 				params["filter"] = string(filterObj)
-				fmt.Printf("jotform request filter: %s", params["filter"])
 			}
 		} else {
 			params[k] = args[k].(string)
