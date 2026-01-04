@@ -144,9 +144,6 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 		// they are too late.
 
 		// TODO:
-		// Send payment reminder email to people who have not paid
-
-		// TODO:
 		// Send the list of training submissions (including who has paid) to bathrc@hotmail.co.uk
 		// mid day the day before
 	}

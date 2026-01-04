@@ -16,15 +16,30 @@ func handleHourly(testMode bool) error {
 	if err != nil {
 		return err
 	}
+	receivedSubmissions, err = updateInPastSubmissions(receivedSubmissions)
+	if err != nil {
+		return fmt.Errorf("failed to update in-past submissions: %w", err)
+	}
+
 	paidSubmissions, err := trainTable.GetAllOfStateRecent(db.PaidSubmissionState, now)
 	if err != nil {
 		return err
 	}
+	paidSubmissions, err = updateInPastSubmissions(paidSubmissions)
+	if err != nil {
+		return fmt.Errorf("failed to update in-past submissions: %w", err)
+	}
+
 	submissions := append(receivedSubmissions, paidSubmissions...)
 	log.Printf("Got %d received and %d paid submissions for future sessions",
 		len(receivedSubmissions), len(paidSubmissions))
 
 	err = handleSubmissionsCheck(submissions)
+	if err != nil {
+		return err
+	}
+
+	err = handlePayReminder(receivedSubmissions)
 	if err != nil {
 		return err
 	}
@@ -41,6 +56,65 @@ func handleHourly(testMode bool) error {
 		err := handleTrainingSummary(submissions, until)
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func handlePayReminder(receivedSubmissions []*db.TrainingSubmission) error {
+	for _, submission := range receivedSubmissions {
+		if submission.ReceivedRequestEmailSent == false {
+			// if the received request have not yet been sent there is no point sending a reminder
+			continue
+		}
+
+		if submission.PayReminderEmailSent == true {
+			continue
+		}
+
+		if submission.PaymentRecordId != "" {
+			// Shouldn't ever get here
+			continue
+		}
+
+		now := time.Now()
+
+		// Don't send a reminder less than an hour after the request was submitted
+		if submission.RequestDate.After(now.Add(-time.Hour)) {
+			continue
+		}
+
+		linkedMemberRecords, linkedSubmissions, err := findSubmissionSet(submission.LinkedSubmissionIds, receivedSubmissions)
+		if err != nil {
+			return err
+		}
+
+		// Find the earliest of the linked submissions
+		var earliestSubmission = linkedSubmissions[0]
+		for _, linkedSubmission := range linkedSubmissions {
+			if linkedSubmission.PayByDate.Before(earliestSubmission.PayByDate) {
+				earliestSubmission = linkedSubmission
+			}
+		}
+
+		if earliestSubmission.PayByDate.After(time.Now()) || earliestSubmission.PayReminderEmailSent == true {
+			continue
+		}
+
+		// only send if the linked set all have valid members
+		if len(linkedSubmissions) == len(linkedMemberRecords) {
+			fmt.Printf("sending a reminder for payment of submission id %s and linked\n", earliestSubmission.GetID())
+
+			emailHandler.SendPayReminder(linkedMemberRecords, linkedSubmissions)
+
+			// update linked submissions
+			for _, sub := range linkedSubmissions {
+				sub.PayReminderEmailSent = true
+			}
+			err = trainTable.PutAll(linkedSubmissions)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
