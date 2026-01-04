@@ -10,10 +10,7 @@ func TestUnmarshal_Training_FromAPIJSON(t *testing.T) {
 
 	// trimmed JSON: 2 submissions, one with 1 entry, one with 2 entries
 	apiJSON := `
-{
-  "responseCode": 200,
-  "message": "success",
-  "content": [
+  [
     {
       "id": "6429329371501736170",
       "form_id": "252725624662359",
@@ -64,23 +61,22 @@ func TestUnmarshal_Training_FromAPIJSON(t *testing.T) {
         "58": { "name": "totalAmount", "answer": "37" }
       }
     }
-  ]
-}`
+  ]`
 
-	var env APIEnvelope
+	var content []TrainingRawRequestWithID
 
-	if err := json.Unmarshal([]byte(apiJSON), &env); err != nil {
+	if err := json.Unmarshal([]byte(apiJSON), &content); err != nil {
 		t.Fatalf("failed to unmarshal api JSON: %v", err)
 	}
 
 	// ---------- Top-level assertions ----------
 
-	if len(env.Content) != 2 {
-		t.Fatalf("expected 2 submissions, got %d", len(env.Content))
+	if len(content) != 2 {
+		t.Fatalf("expected 2 submissions, got %d", len(content))
 	}
 
-	first := env.Content[0]
-	second := env.Content[1]
+	first := content[0]
+	second := content[1]
 
 	// ---------- First submission checks ----------
 	if first.SubmissionID != "6429329371501736170" {

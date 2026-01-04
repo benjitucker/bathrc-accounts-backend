@@ -23,21 +23,16 @@ func handleSubmissionsCheck(submissions []*db.TrainingSubmission) error {
 		return fmt.Errorf("failed getting form submissions: %w", err)
 	}
 
-	var env jotform_webhook.APIEnvelope
+	var content []jotform_webhook.TrainingRawRequestWithID
 
-	if err := json.Unmarshal(submissionsData, &env); err != nil {
+	if err := json.Unmarshal(submissionsData, &content); err != nil {
 		return fmt.Errorf("failed to unmarshal api JSON %s: %w", string(submissionsData), err)
 	}
 
-	if env.ResponseCode != 200 || env.Message != "success" {
-		fmt.Printf("jotform get form submissions failed: %s", string(submissionsData))
-		return nil
-	}
-
-	fmt.Printf("Successfully got %d submissions made in the last 90 minutes from API\n", len(env.Content))
+	fmt.Printf("Successfully got %d submissions made in the last 90 minutes from API\n", len(content))
 
 	// Check for any submissions we do not have in our database
-	for _, apiSubmission := range env.Content {
+	for _, apiSubmission := range content {
 		submissionId := apiSubmission.SubmissionID
 		foundInDb := false
 		for _, dbSubmission := range submissions {

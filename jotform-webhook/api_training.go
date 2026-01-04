@@ -20,12 +20,6 @@ type apiAnswerField struct {
 	Answer json.RawMessage `json:"answer,omitempty"`
 }
 
-type APIEnvelope struct {
-	ResponseCode int                        `json:"responseCode"`
-	Message      string                     `json:"message"`
-	Content      []TrainingRawRequestWithID `json:"content"`
-}
-
 type TrainingRawRequestWithID struct {
 	SubmissionID string `json:"id"`
 	TrainingRawRequest
