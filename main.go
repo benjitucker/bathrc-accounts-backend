@@ -67,7 +67,7 @@ func handleEventBridge(payload EventBridgePayload) (any, error) {
 	if payload.PeriodType == "hourly" {
 		err := handleHourly(false)
 		if err != nil {
-			fmt.Printf("ERROR: %v", err)
+			fmt.Printf("ERROR: %v\n", err)
 			emailHandler.SendEmail(testEmail, "jotform event bridge: FAIL", err.Error())
 			return nil, err
 		}
@@ -106,7 +106,7 @@ func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctio
 	}
 
 	if err != nil {
-		fmt.Printf("ERROR: %v", err)
+		fmt.Printf("ERROR: %v\n", err)
 		emailHandler.SendEmail(testEmail, "jotform webhook: FAIL", err.Error())
 	}
 
@@ -122,7 +122,7 @@ func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctio
 }
 
 func serverError(err error) (events.LambdaFunctionURLResponse, error) {
-	fmt.Printf("ERROR: %s", err.Error())
+	fmt.Printf("ERROR: %v\n", err)
 
 	return events.LambdaFunctionURLResponse{
 		StatusCode: http.StatusInternalServerError,
@@ -142,7 +142,7 @@ func main() {
 
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		fmt.Printf("ERROR: %s", err.Error())
+		fmt.Printf("ERROR: %v\n", err)
 		return
 	}
 
@@ -162,7 +162,7 @@ func main() {
 		TrainingEmail: trainingEmail,
 	})
 	if err != nil {
-		fmt.Printf("ERROR: %s", err.Error())
+		fmt.Printf("ERROR: %v\n", err)
 		return
 	}
 
@@ -170,19 +170,19 @@ func main() {
 
 	err = trainTable.Open(ctx, ddb)
 	if err != nil {
-		fmt.Printf("ERROR: %s", err.Error())
+		fmt.Printf("ERROR: %v\n", err)
 		return
 	}
 
 	err = memberTable.Open(ctx, ddb)
 	if err != nil {
-		fmt.Printf("ERROR: %s", err.Error())
+		fmt.Printf("ERROR: %v\n", err)
 		return
 	}
 
 	err = transactionTable.Open(ctx, ddb)
 	if err != nil {
-		fmt.Printf("ERROR: %s", err.Error())
+		fmt.Printf("ERROR: %v\n", err)
 		return
 	}
 
@@ -199,7 +199,7 @@ func getSecret(paramName string) string {
 		WithDecryption: &withDecryption,
 	})
 	if err != nil {
-		fmt.Printf("ERROR: %s", err.Error())
+		fmt.Printf("ERROR: %v\n", err)
 		return ""
 	}
 	return *resp.Parameter.Value

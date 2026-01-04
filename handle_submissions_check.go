@@ -26,7 +26,7 @@ func handleSubmissionsCheck(submissions []*db.TrainingSubmission) error {
 	var env jotform_webhook.APIEnvelope
 
 	if err := json.Unmarshal(submissionsData, &env); err != nil {
-		return fmt.Errorf("failed to unmarshal api JSON: %w", err)
+		return fmt.Errorf("failed to unmarshal api JSON %s: %w", string(submissionsData), err)
 	}
 
 	if env.ResponseCode != 200 || env.Message != "success" {
