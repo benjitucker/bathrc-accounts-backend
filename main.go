@@ -67,6 +67,8 @@ func handleEventBridge(payload EventBridgePayload) (any, error) {
 	if payload.PeriodType == "hourly" {
 		err := handleHourly(false)
 		if err != nil {
+			fmt.Printf("ERROR: %v", err)
+			emailHandler.SendEmail(testEmail, "jotform event bridge: FAIL", err.Error())
 			return nil, err
 		}
 	}
@@ -95,7 +97,8 @@ func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctio
 
 	switch formData.RawRequest.FormKind() {
 	case trainingRequestForm:
-		err = handleTrainingRequest(formData, formData.RawRequest.(jotform_webhook.TrainingRawRequest))
+		request := formData.RawRequest.(jotform_webhook.TrainingRawRequest)
+		err = handleTrainingRequest(formData.SubmissionID, &request)
 	case trainingAdminForm:
 		err = handleTrainingAdmin(formData, formData.RawRequest.(jotform_webhook.TrainingAdminRawRequest))
 	default:

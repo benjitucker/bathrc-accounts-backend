@@ -8,10 +8,28 @@ import (
 	"time"
 )
 
-// TODO - connect to jotform and check for training submissions that have not been processed, for reliability.
-
 func handleHourly(testMode bool) error {
+
 	now := time.Now()
+	// Get all training submissions here as they are used an a few places
+	receivedSubmissions, err := trainTable.GetAllOfStateRecent(db.ReceivedSubmissionState, now)
+	if err != nil {
+		return err
+	}
+	paidSubmissions, err := trainTable.GetAllOfStateRecent(db.PaidSubmissionState, now)
+	if err != nil {
+		return err
+	}
+	submissions := append(receivedSubmissions, paidSubmissions...)
+	log.Printf("Got %d received and %d paid submissions for future sessions",
+		len(receivedSubmissions), len(paidSubmissions))
+
+	err = handleSubmissionsCheck(submissions)
+	if err != nil {
+		return err
+	}
+
+	// Generate Training Summaries
 	until := now.Add(time.Hour * 36)
 	if testMode == true {
 		// Extend the summary period out to a month in test mode
@@ -20,8 +38,7 @@ func handleHourly(testMode bool) error {
 
 	// Email a summary of training submissions to the club email lunchtime on the day before
 	if now.Hour() == 12 || testMode == true {
-
-		err := handleTrainingSummary(now, until)
+		err := handleTrainingSummary(submissions, until)
 		if err != nil {
 			return err
 		}
@@ -65,25 +82,8 @@ func dayWithSuffix(day int) string {
 	}
 }
 
-func handleTrainingSummary(now, until time.Time) error {
-
-	// Get all unpaid training submissions for future sessions
-	receivedSubmissions, err := trainTable.GetAllOfStateRecent(db.ReceivedSubmissionState, now)
-	if err != nil {
-		return err
-	}
-
-	// Get all paid training submissions for future sessions
-	paidSubmissions, err := trainTable.GetAllOfStateRecent(db.PaidSubmissionState, now)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("Got %d received and %d paid submissions for future sessions",
-		len(receivedSubmissions), len(paidSubmissions))
-
-	err = writeEmails(until,
-		append(paidSubmissions, receivedSubmissions...), memberTable.Get,
+func handleTrainingSummary(submissions []*db.TrainingSubmission, until time.Time) error {
+	return writeEmails(until, submissions, memberTable.Get,
 		func(subject, body string) {
 			email := clubEmail
 			if testMode == true {
@@ -91,8 +91,6 @@ func handleTrainingSummary(now, until time.Time) error {
 			}
 			emailHandler.SendEmail(email, subject, body)
 		})
-
-	return nil
 }
 
 func dateOnly(timeDate time.Time) time.Time {

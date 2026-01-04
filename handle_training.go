@@ -14,22 +14,23 @@ const (
 	payBeforeSessionDuration = time.Hour * -36
 )
 
-func makeId(formData *jotform_webhook.FormData, entryIndex int) string {
-	return fmt.Sprintf("%s-%d", formData.SubmissionID, entryIndex)
+func makeId(submissionId string, entryIndex int) string {
+	return fmt.Sprintf("%s-%d", submissionId, entryIndex)
 }
 
-func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_webhook.TrainingRawRequest) error {
+func handleTrainingRequest(submissionId string, request jotform_webhook.TrainingRequest) error {
 
 	var submissions []*db.TrainingSubmission
+	rawRequest := request.GetRawRequest()
 
-	for _, entry := range request.Entries {
+	for _, entry := range rawRequest.Entries {
 
 		amount, err := strconv.ParseFloat(entry.Amount, 64)
 		if err != nil {
 			return fmt.Errorf("amount float number (%s): %w", entry.Amount, err)
 		}
 		amountPence := math.Floor(amount * 100)
-		requestDate := time.Time(request.SubmitDate)
+		requestDate := time.Time(rawRequest.SubmitDate)
 		currentMembership := len(entry.CurrentMembershipSelection) > 0 &&
 			len(entry.CurrentMembershipSelection[0]) > 0
 
@@ -45,7 +46,7 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 			HorseName:        entry.HorseName,
 			RequestDate:      requestDate,
 			RequestDateUnix:  requestDate.Unix(),
-			PaymentReference: request.PaymentReference,
+			PaymentReference: rawRequest.PaymentReference,
 			// Assume everything will be ok to start with
 			FoundMemberRecord:        true,
 			LapsedMembership:         false,
@@ -61,10 +62,10 @@ func handleTrainingRequest(formData *jotform_webhook.FormData, request jotform_w
 		// fill the cross-references
 		for i := range submissions {
 			submission.LinkedSubmissionIds =
-				append(submission.LinkedSubmissionIds, makeId(formData, i))
+				append(submission.LinkedSubmissionIds, makeId(submissionId, i))
 		}
 
-		err := trainTable.Put(submission, makeId(formData, entryIndex))
+		err := trainTable.Put(submission, makeId(submissionId, entryIndex))
 		if err != nil {
 			return err
 		}
