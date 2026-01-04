@@ -256,6 +256,9 @@ func isThrottleError(err error) bool {
 }
 
 func updateAllItems[T dbItemIf](t *dbTable, records []T) error {
+	if len(records) == 0 {
+		return nil
+	}
 
 	const maxParallel = 20
 
