@@ -70,7 +70,7 @@ func (client APIClient) newRequest(requestPath string, params interface{}, metho
 	request := client.newURLRequest(path, params, method)
 	reqDump, err := httputil.DumpRequestOut(request, true)
 	if err == nil {
-		fmt.Printf("REQUEST:%s\n", string(reqDump))
+		fmt.Printf("REQUEST:\n%s", string(reqDump))
 	}
 	return request
 }
@@ -89,8 +89,6 @@ func (client APIClient) newURLRequest(path string, params interface{}, method st
 			for k, _ := range data {
 				values.Set(k, data[k])
 			}
-			// Responses are empty unless the api key is included as a parameter
-			values.Set("apiKey", client.apiKey)
 			path = path + "?" + values.Encode()
 		}
 
@@ -103,8 +101,6 @@ func (client APIClient) newURLRequest(path string, params interface{}, method st
 		for k, _ := range data {
 			values.Set(k, data[k])
 		}
-		// Responses are empty unless the api key is included as a parameter
-		values.Set("apiKey", client.apiKey)
 
 		request, _ = http.NewRequest("POST", path, strings.NewReader(values.Encode()))
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
