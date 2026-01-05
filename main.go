@@ -35,7 +35,7 @@ var (
 	ssmClient                *ssm.Client
 	clubEmail, trainingEmail string
 	testEmail, testEmail2    string
-	testMode                 = true // TODO - disable
+	testMode                 = false // TODO - disable
 )
 
 type EventBridgePayload struct {
