@@ -169,6 +169,10 @@ func findSubmissionSet(linkedIds []string, recvSubs []*db.TrainingSubmission) ([
 				return nil, nil, err
 			}
 		}
+		if submission == nil {
+			fmt.Printf("Linked Submission ID %s could not be found", subId)
+			continue
+		}
 		member, err := memberTable.Get(submission.MembershipNumber)
 		if err != nil {
 			return nil, nil, err
