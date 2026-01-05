@@ -136,10 +136,10 @@ func toCSVLine(t *db.TransactionRecord, submissions []*db.TrainingSubmission, no
 			venueCode = submission.Venue
 		}
 
-		venuesSet = venuesSet + venueCode
 		if i > 0 {
 			venuesSet += " "
 		}
+		venuesSet = venuesSet + venueCode
 	}
 
 	record := []string{
