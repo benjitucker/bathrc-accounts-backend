@@ -15,7 +15,7 @@ import (
 type TransactionRecord struct {
 	DBItem
 	Date         time.Time `dynamodbav:"txnDate"`
-	DateUnix     int64     `dynamodbav:"txnDateUnix"`
+	ExpireAt     int64     `dynamodbav:"expireAt"`
 	Type         string    `dynamodbav:"txnType"`
 	Description  string    `dynamodbav:"txnDescription"`
 	FirstName    string    `dynamodbav:"txnFirstName"`
@@ -50,8 +50,8 @@ func (t TransactionRecord) String() string {
 // Hash generates a SHA-256 hash of the transaction
 func (t TransactionRecord) Hash() string {
 	data := fmt.Sprintf(
-		"%d|%s|%s|%s|%s|%d|%d",
-		t.DateUnix,
+		"%s|%s|%s|%s|%s|%d|%d",
+		t.Date,
 		t.Type,
 		t.Description,
 		t.FirstName,

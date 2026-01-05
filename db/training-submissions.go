@@ -16,13 +16,12 @@ type TrainingSubmission struct {
 	TrainingDate              time.Time `dynamodbav:"trainingDate"`
 	PayByDate                 time.Time `dynamodbav:"payByDate"`
 	PaymentRecordId           string    `dynamodbav:"paymentRecordId"`
-	DateUnix                  int64     `dynamodbav:"trainingDateUnix"`
 	MembershipNumber          string    `dynamodbav:"brcMembership"`
 	Venue                     string    `dynamodbav:"trainingVenue"`
 	AmountPence               int64     `dynamodbav:"amountPence"`
 	HorseName                 string    `dynamodbav:"horseName"`
 	RequestDate               time.Time `dynamodbav:"requestDate"`
-	RequestDateUnix           int64     `dynamodbav:"requestDateUnix"`
+	ExpireAt                  int64     `dynamodbav:"expireAt"`
 	PaymentReference          string    `dynamodbav:"paymentReference"`
 	RequestCurrMem            bool      `dynamodbav:"requestCurrMem"`
 	ActualCurrMem             bool      `dynamodbav:"actualCurrMem"`

@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const (
+	transactionRecordTTL = time.Hour * 24 * 365 * 2 // keep for 2 years
+)
+
 // parsePence converts a string like "20.00" or "-10.01" to int64 pence
 func parsePence(s string) (int64, error) {
 	negative := false
@@ -101,7 +105,7 @@ func parseTransactionsCSV(csvData []byte) ([]*db.TransactionRecord, error) {
 
 		transactions = append(transactions, &db.TransactionRecord{
 			Date:         date,
-			DateUnix:     date.Unix(),
+			ExpireAt:     date.Add(transactionRecordTTL).Unix(),
 			Type:         record[1],
 			Description:  remainder,
 			FirstName:    first,

@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	payBeforeSessionDuration = time.Hour * -36
+	payBeforeSessionDuration    = time.Hour * -36
+	trainingSubmissionRecordTTL = time.Hour * 24 * 365 * 2 // Keep for 2 years
 )
 
 func makeId(submissionId string, entryIndex int) string {
@@ -37,7 +38,6 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 		submissions = append(submissions, &db.TrainingSubmission{
 			SubmissionState:  db.ReceivedSubmissionState,
 			TrainingDate:     entry.SelectSession.StartLocal,
-			DateUnix:         entry.SelectSession.StartLocal.Unix(),
 			PayByDate:        entry.SelectSession.StartLocal.Add(payBeforeSessionDuration),
 			MembershipNumber: strings.Trim(entry.MembershipNumber, " "),
 			RequestCurrMem:   currentMembership,
@@ -45,7 +45,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			AmountPence:      int64(amountPence),
 			HorseName:        entry.HorseName,
 			RequestDate:      requestDate,
-			RequestDateUnix:  requestDate.Unix(),
+			ExpireAt:         requestDate.Add(trainingSubmissionRecordTTL).Unix(),
 			PaymentReference: rawRequest.PaymentReference,
 			// Assume everything will be ok to start with
 			FoundMemberRecord:        true,

@@ -44,7 +44,7 @@ func TestParseCSV(t *testing.T) {
 	expected := []*db.TransactionRecord{
 		{
 			Date:         mustParseDate("22 Dec 2025"),
-			DateUnix:     mustParseDateUnix("22 Dec 2025"),
+			ExpireAt:     mustParseDateUnix("22 Dec 2027"),
 			Type:         "CR",
 			Description:  "BOB FOG",
 			FirstName:    "FOG",
@@ -54,7 +54,7 @@ func TestParseCSV(t *testing.T) {
 		},
 		{
 			Date:         mustParseDate("22 Dec 2025"),
-			DateUnix:     mustParseDateUnix("22 Dec 2025"),
+			ExpireAt:     mustParseDateUnix("22 Dec 2027"),
 			Type:         "CR",
 			Description:  "",
 			FirstName:    "Spot",
