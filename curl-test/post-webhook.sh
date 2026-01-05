@@ -5,9 +5,9 @@ MEMBER2=99691212
 #MEMBER1=99999999
 #MEMBER2=88888888
 SUBMISSIONID=$(date +%s%3N)
-SESSION_DATE1=2027-03-01
-SESSION_DATE2=2027-03-02
-PAYREF=QWER
+SESSION_DATE1=2027-01-07
+SESSION_DATE2=2027-01-08
+PAYREF=REWQ
 
 curl -X POST https://rvpzpqjytyw6pilrg4glui2ko40qudxj.lambda-url.eu-west-3.on.aws/ -d "--------------------------CjIexjxdCcNhzczUt4wo08
 Content-Disposition: form-data; name=\"action\"

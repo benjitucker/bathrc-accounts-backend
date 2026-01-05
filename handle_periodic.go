@@ -58,6 +58,14 @@ func handleHourly(testMode bool) error {
 			return err
 		}
 	}
+
+	// Email a summary of transactions to me on the 5th of the month at 10AM
+	if (now.Day() == 5 && now.Hour() == 10) || testMode == true {
+		err := handleTransactionsSummary()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
