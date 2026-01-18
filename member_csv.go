@@ -64,6 +64,20 @@ func parseMembersCSV(data []byte) ([]*db.MemberRecord, error) {
 			record.MembershipValidTo = to
 		}
 
+		// Check we have all the fields
+		if record.FirstName == "" ||
+			record.LastName == "" ||
+			record.SexAtBirth == "" ||
+			record.Email == "" ||
+			record.MemberNumber == "" ||
+			record.ClubMembershipStatus == "" ||
+			record.MembershipType == "" ||
+			record.DateOfBirth == nil ||
+			record.MembershipValidFrom == nil ||
+			record.MembershipValidTo == nil {
+			return nil, fmt.Errorf("missing information in membership record: %s", record.String())
+		}
+
 		records = append(records, &record)
 	}
 
