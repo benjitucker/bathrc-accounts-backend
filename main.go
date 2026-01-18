@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -35,7 +36,9 @@ var (
 	ssmClient                *ssm.Client
 	clubEmail, trainingEmail string
 	testEmail, testEmail2    string
-	testMode                 = false // TODO - disable
+
+	// Controlled by the TEST_MODE env var
+	testMode = false
 )
 
 type EventBridgePayload struct {
@@ -138,6 +141,12 @@ func main() {
 	logLevel, exists := os.LookupEnv("LOG_LEVEL")
 	if !exists {
 		logLevel = "debug"
+	}
+
+	tm, exists := os.LookupEnv("TEST_MODE")
+	if exists && strings.ToLower(tm) != "false" {
+		testMode = true
+		fmt.Printf("TEST MODE ENABLED!\n")
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx)
