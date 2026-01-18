@@ -78,7 +78,7 @@ func (r *TrainingRawRequestWithID) UnmarshalJSON(b []byte) error {
 			Duration string `json:"duration"`
 			Timezone string `json:"timezone"`
 		}
-		if f, ok := byName["selectSession"+suffix]; ok && len(f.Answer) > 0 {
+		if f, ok := byName["select"+venue+"Session"+suffix]; ok && len(f.Answer) > 0 {
 			_ = json.Unmarshal(f.Answer, &sess)
 		}
 

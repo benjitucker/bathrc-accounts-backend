@@ -23,7 +23,7 @@ func TestUnmarshal_Training_FromAPIJSON(t *testing.T) {
         "31": { "name": "amount", "answer": "20" },
         "34": { "name": "selectedVenue", "answer": "Widbrook" },
         "5":  { 
-          "name": "selectSession", 
+          "name": "selectWidbrookSession", 
           "answer": { "date": "2026-01-02 15:00", "duration": "60", "timezone": "Europe/London (GMT)" }
         },
         "12": { "name": "typeA", "answer": "CATJ" },
@@ -41,9 +41,9 @@ func TestUnmarshal_Training_FromAPIJSON(t *testing.T) {
         "15": { "name": "brcMembership15", "answer": "11111111" },
         "18": { "name": "horseName18", "answer": "test1" },
         "31": { "name": "amount", "answer": "21" },
-        "34": { "name": "selectedVenue", "answer": "West Wilts" },
+        "34": { "name": "selectedVenue", "answer": "WestWilts" },
         "5":  { 
-          "name": "selectSession",
+          "name": "selectWestWiltsSession",
           "answer": { "date": "2026-01-01 13:00", "duration": "60", "timezone": "Europe/London (GMT+01:00)" }
         },
 
@@ -52,7 +52,7 @@ func TestUnmarshal_Training_FromAPIJSON(t *testing.T) {
         "59": { "name": "amount-2", "answer": "16" },
         "60": { "name": "selectedVenue-2", "answer": "Widbrook" },
         "51": { 
-          "name": "selectSession-2",
+          "name": "selectWidbrookSession-2",
           "answer": { "date": "2026-01-02 13:00", "duration": "60", "timezone": "Europe/London (GMT+00:00)" }
         },
 

@@ -90,8 +90,11 @@ func (r *TrainingRawRequest) UnmarshalJSON(b []byte) error {
 			if strings.HasSuffix(k, "selectedVenue"+suffix) {
 				_ = json.Unmarshal(v, &entry.Venue)
 			}
+		}
 
-			if strings.HasSuffix(k, "selectSession"+suffix) {
+		// Use the venue from the first pass to find the session selection
+		for k, v := range m {
+			if strings.HasSuffix(k, "select"+entry.Venue+"Session"+suffix) {
 				var sess sessionJSON
 				_ = json.Unmarshal(v, &sess)
 

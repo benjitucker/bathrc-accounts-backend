@@ -22,7 +22,7 @@ Content-Disposition: form-data; name="submissionID"
 --------------------------boundary
 Content-Disposition: form-data; name="rawRequest"
 
-{"submitDate":"1765134783857","buildDate":"1765134764914","q15_brcMembership15":"1234567","q18_horseName18":"luke","q5_selectSession":{"implementation":"new","date":"2025-12-11 20:00","duration":"60","timezone":"Europe/London"},"q34_selectedVenue":"West Wilts","q12_typeA":"ZL44","q31_amount":"26","q58_totalAmount": "26"}
+{"submitDate":"1765134783857","buildDate":"1765134764914","q15_brcMembership15":"1234567","q18_horseName18":"luke","q5_selectWestWiltsSession":{"implementation":"new","date":"2025-12-11 20:00","duration":"60","timezone":"Europe/London"},"q34_selectedVenue":"WestWilts","q12_typeA":"ZL44","q31_amount":"26","q58_totalAmount": "26"}
 --------------------------boundary--`
 
 	form, err := DecodeBase64Multipart(mustBase64(payload))

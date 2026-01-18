@@ -12,7 +12,8 @@ func TestTrainingRawRequest_Unmarshal(t *testing.T) {
 		"buildDate":"1765134764914",
 		"q15_brcMembership15":"ABC",
 		"q18_horseName18":"Horse",
-		"q5_selectSession":{
+        "selectedVenue":"TestVenue",
+		"q5_selectTestVenueSession":{
 			"implementation":"new",
 			"date":"2025-12-11 20:00",
 			"duration":"45",
@@ -50,9 +51,15 @@ func TestTrainingRawRequest_Unmarshal_one_entry(t *testing.T) {
   "eventObserver": "1",
   "q15_brcMembership15": "1111111",
   "q18_horseName18": "Luke",
-  "q5_selectSession": {
+  "q5_selectWidbrookSession": {
     "implementation": "new",
     "date": "2026-01-02 20:00",
+    "duration": "60",
+    "timezone": "Europe/London (GMT)"
+  },
+  "q5_selectAltTestVenueSession": {
+    "implementation": "new",
+    "date": "2026-01-03 20:00",
     "duration": "60",
     "timezone": "Europe/London (GMT)"
   },
@@ -67,7 +74,13 @@ func TestTrainingRawRequest_Unmarshal_one_entry(t *testing.T) {
   "q57_widmem": "16",
   "q48_brcMembership15-2": "",
   "q50_horseName18-2": "",
-  "q51_selectSession-2": {
+  "q51_selectTestVenueSession-2": {
+    "implementation": "new",
+    "date": "",
+    "duration": "60",
+    "timezone": "Europe/London (GMT+00:00)"
+  },
+  "q51_selectAltTestVenueSession-2": {
     "implementation": "new",
     "date": "",
     "duration": "60",
@@ -121,13 +134,19 @@ func TestTrainingRawRequest_Unmarshal_second_entry(t *testing.T) {
     "Current Club Membership"
   ],
   "q18_horseName18": "test1",
-  "q5_selectSession": {
+  "q5_selectAltTestSession": {
+    "implementation": "new",
+    "date": "2026-01-03 18:00",
+    "duration": "60",
+    "timezone": "Europe/London (GMT+01:00)"
+  },
+  "q5_selectWestWiltsSession": {
     "implementation": "new",
     "date": "2026-01-01 18:00",
     "duration": "60",
     "timezone": "Europe/London (GMT+01:00)"
   },
-  "q34_selectedVenue": "West Wilts",
+  "q34_selectedVenue": "WestWilts",
   "q31_amount": "21",
   "q58_totalAmount": "37",
   "q53_paymentRef": "VSHE",
@@ -141,7 +160,13 @@ func TestTrainingRawRequest_Unmarshal_second_entry(t *testing.T) {
     "Current Club Membership"
   ],
   "q50_horseName18-2": "test2",
-  "q51_selectSession-2": {
+  "q51_selectAltTestVenueSession-2": {
+    "implementation": "new",
+    "date": "",
+    "duration": "60",
+    "timezone": "Europe/London (GMT+00:00)"
+  },
+  "q51_selectWidbrookSession-2": {
     "implementation": "new",
     "date": "2026-01-02 18:00",
     "duration": "60",
@@ -170,7 +195,7 @@ func TestTrainingRawRequest_Unmarshal_second_entry(t *testing.T) {
 		t.Errorf("date parse failed")
 	}
 
-	if rr.Entries[0].Venue != "West Wilts" {
+	if rr.Entries[0].Venue != "WestWilts" {
 		t.Errorf("venue parse failed")
 	}
 
