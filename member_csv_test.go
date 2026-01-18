@@ -61,7 +61,7 @@ func TestParseMembersCSV_EmptyCSV(t *testing.T) {
 
 func TestParseMembersCSV_InvalidDate(t *testing.T) {
 	csvData := []byte(`"First Name","Last Name","Date of Birth","Sex at Birth","Email Address","Individual Membership Member No.","BATH RIDING CLUB Membership Status","BATH RIDING CLUB Membership Valid From","BATH RIDING CLUB Membership Valid To","BATH RIDING CLUB Membership Membership Type"
-Alice,Test,1987-01-23,Female,alice.test@example.com,99703368,Current,invalid date,invalid date,Senior`)
+Alice,Test,1987-01-23,Female,,99703368,Current,invalid date,invalid date,Senior`)
 
 	_, err := parseMembersCSV(csvData)
 	if err == nil {
