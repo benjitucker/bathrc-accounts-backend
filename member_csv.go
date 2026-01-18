@@ -79,6 +79,10 @@ func parseMembersCSV(data []byte) ([]*db.MemberRecord, error) {
 		records = append(records, &record)
 	}
 
+	if records == nil {
+		return nil, fmt.Errorf("no valid membership data processed")
+	}
+
 	return records, nil
 }
 
