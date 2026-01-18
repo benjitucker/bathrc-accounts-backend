@@ -102,8 +102,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 
 		// check that the membership is current, send me a message if not. Inconsistency with the form data
 		// will be flagged with member when update membership data is received
-		submission.ActualCurrMem = membershipDateCheck(
-			memberRecord.MembershipValidFrom, memberRecord.MembershipValidTo, &submission.TrainingDate)
+		submission.ActualCurrMem = membershipDateCheck(memberRecord, &submission.TrainingDate)
 
 		if submission.ActualCurrMem != submission.RequestCurrMem {
 
@@ -159,7 +158,9 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 	return nil
 }
 
-func membershipDateCheck(start, end, target *time.Time) bool {
+func membershipDateCheck(member *db.MemberRecord, target *time.Time) bool {
+	start := member.MembershipValidFrom
+	end := member.MembershipValidTo
 	if start == nil {
 		return false
 	}

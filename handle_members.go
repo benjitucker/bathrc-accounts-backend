@@ -92,10 +92,7 @@ correct information.
 			// [re] check the membership status if there is an update
 			if updatedMemberRecord != nil {
 				oldActual := submission.ActualCurrMem
-				newActual := membershipDateCheck(
-					updatedMemberRecord.MembershipValidFrom,
-					updatedMemberRecord.MembershipValidTo,
-					&submission.TrainingDate)
+				newActual := membershipDateCheck(updatedMemberRecord, &submission.TrainingDate)
 				if oldActual != newActual {
 					submission.ActualCurrMem = newActual
 					// update the db
