@@ -4,6 +4,7 @@ import (
 	"benjitucker/bathrc-accounts/db"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"time"
 )
@@ -212,6 +213,32 @@ func writeEmails(until time.Time, submissions []*db.TrainingSubmission,
 	for tDate, daySubs := range sessionSubmissions {
 		summaries := make(map[string]*venueSummary)
 		for tTime, submissions := range daySubs {
+
+			// Sort submissions: Paid first, then Incorrect Payment, then NOT PAID
+			// Within each group, sort by request date
+			sort.SliceStable(submissions, func(i, j int) bool {
+				sI := submissions[i]
+				sJ := submissions[j]
+
+				rank := func(s *db.TrainingSubmission) int {
+					if s.PaymentRecordId != "" {
+						if !s.PaymentDiscrepancy {
+							return 1 // Paid
+						}
+						return 2 // Incorrect Payment
+					}
+					return 3 // NOT PAID
+				}
+
+				rI := rank(sI)
+				rJ := rank(sJ)
+				if rI != rJ {
+					return rI < rJ
+				}
+
+				return sI.RequestDate.Before(sJ.RequestDate)
+			})
+
 			for _, submission := range submissions {
 				if submission.FoundMemberRecord == false {
 					continue
