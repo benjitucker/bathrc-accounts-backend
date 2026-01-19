@@ -45,6 +45,7 @@ type EventBridgePayload struct {
 	PeriodType string `json:"period"`
 }
 
+// handler is the entry point for Lambda functions, routing requests to either API Gateway or EventBridge handlers.
 func handler(raw json.RawMessage) (any, error) {
 
 	// Try API Gateway first
@@ -64,6 +65,7 @@ func handler(raw json.RawMessage) (any, error) {
 	return map[string]string{"status": "unhandled"}, nil
 }
 
+// handleEventBridge processes events triggered by AWS EventBridge, such as hourly scheduled tasks.
 func handleEventBridge(payload EventBridgePayload) (any, error) {
 	fmt.Printf("Handle Event Bridge, period %s\n", payload.PeriodType)
 
@@ -88,6 +90,7 @@ func handleEventBridge(payload EventBridgePayload) (any, error) {
 	}, nil
 }
 
+// handleAPIRequest handles incoming webhook requests from Jotform via API Gateway.
 func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
 	fmt.Printf("Handle API, body %s", req.Body)
 
@@ -201,6 +204,7 @@ func main() {
 	lambda.Start(handler)
 }
 
+// getSecret retrieves a configuration parameter from AWS Systems Manager (SSM) Parameter Store.
 func getSecret(paramName string) string {
 	withDecryption := true
 	resp, err := ssmClient.GetParameter(ctx, &ssm.GetParameterInput{

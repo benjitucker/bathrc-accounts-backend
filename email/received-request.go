@@ -32,6 +32,7 @@ func earliestDate(dates ...time.Time) time.Time {
 	return earliest
 }
 
+// SendReceivedRequest sends an acknowledgment email for one or more training requests, including payment instructions.
 func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissions []*db.TrainingSubmission, extraText string) {
 	if len(members) == 0 {
 		fmt.Printf("Cannot send email, no valid membership numbers to send them too")

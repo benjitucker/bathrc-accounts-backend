@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// handleMembers processes new member records, updates the database, and sends necessary training confirmation emails.
 func handleMembers(records []*db.MemberRecord) error {
 	err := memberTable.PutAll(records)
 	if err != nil {
@@ -144,8 +145,7 @@ correct information.
 	return nil
 }
 
-// findSubmissionSet returns the same pointers passed in recvSubs, so that updated using pointers
-// affect the original source
+// findSubmissionSet identifies and returns the sets of member records and training submissions associated with a list of submission IDs.
 func findSubmissionSet(linkedIds []string, recvSubs []*db.TrainingSubmission) ([]*db.MemberRecord, []*db.TrainingSubmission, error) {
 	var members []*db.MemberRecord
 	var submissions []*db.TrainingSubmission
@@ -195,7 +195,7 @@ func isInPast(sub *db.TrainingSubmission) bool {
 	return sub.TrainingDate.Before(time.Now())
 }
 
-// updateInPastSubmissions and return only the current ones
+// updateInPastSubmissions marks training submissions that have already occurred as 'in past' and filters them out.
 func updateInPastSubmissions(submissions []*db.TrainingSubmission) ([]*db.TrainingSubmission, error) {
 	var result []*db.TrainingSubmission
 	var inPast []*db.TrainingSubmission

@@ -19,6 +19,7 @@ func makeId(submissionId string, entryIndex int) string {
 	return fmt.Sprintf("%s-%d", submissionId, entryIndex)
 }
 
+// handleTrainingRequest processes a single training request submission from Jotform, creating multiple database entries if needed.
 func handleTrainingRequest(submissionId string, request jotform_webhook.TrainingRequest) error {
 
 	var submissions []*db.TrainingSubmission
@@ -158,6 +159,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 	return nil
 }
 
+// membershipDateCheck verifies if a member's membership is valid on a specific target date.
 func membershipDateCheck(member *db.MemberRecord, target *time.Time) bool {
 	start := member.MembershipValidFrom
 	end := member.MembershipValidTo

@@ -50,6 +50,7 @@ func mapToString(item map[string]types.AttributeValue) string {
 	return string(result)
 }
 
+// putItem marshals a record into a DynamoDB attribute map and stores it in the specified table.
 func putItem[T dbItemIf](t *dbTable, record T) error {
 
 	item, err := attributevalue.MarshalMap(record)
@@ -108,6 +109,7 @@ func getItem[T dbItemIf](t *dbTable, id string) (T, error) {
 	return out, nil
 }
 
+// queryItems executes a DynamoDB query and unmarshals the results into a slice of the generic type T.
 func queryItems[T dbItemIf](t *dbTable, query *dynamodb.QueryInput) ([]T, error) {
 	var result []T
 	paginator := dynamodb.NewQueryPaginator(t.ddb, query)
@@ -135,7 +137,7 @@ func queryItems[T dbItemIf](t *dbTable, query *dynamodb.QueryInput) ([]T, error)
 	return result, nil
 }
 
-// scanAllItems is expensive, it uses up read units
+// scanAllItems performs a full table scan and unmarshals all items into a slice of the generic type T.
 func scanAllItems[T dbItemIf](t *dbTable) ([]T, error) {
 
 	var result []T
@@ -171,6 +173,7 @@ func scanAllItems[T dbItemIf](t *dbTable) ([]T, error) {
 
 // updateItem updates a record with exponential backoff on failure
 // It updates an existing item or adds a new one it none exists with the key value
+// updateItem performs a conditional update on a DynamoDB item, handling potential throttling with retries.
 func updateItem[T dbItemIf](t *dbTable, record *T) error {
 	var err error
 
@@ -255,6 +258,7 @@ func isThrottleError(err error) bool {
 	return errors.As(err, &throughputErr) || errors.As(err, &throttlingErr)
 }
 
+// updateAllItems updates multiple items in the table sequentially, with individual item retry logic.
 func updateAllItems[T dbItemIf](t *dbTable, records []T) error {
 	if len(records) == 0 {
 		return nil

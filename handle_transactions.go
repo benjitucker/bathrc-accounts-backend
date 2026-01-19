@@ -19,6 +19,7 @@ func formatAmount(amountPence int64) string {
 	return fmt.Sprintf("£%d.%02d", amountPence/100, amountPence%100)
 }
 
+// handleTransactions processes new transaction records, updates the database, and matches them against training submissions to mark them as paid.
 func handleTransactions(records []*db.TransactionRecord) error {
 
 	emailHandler.SendEmail(testEmail, "jotform webhook: Training Admin",
@@ -172,6 +173,7 @@ func handleTransactions(records []*db.TransactionRecord) error {
 	return nil
 }
 
+// calcDistance calculates the Levenshtein distance between a submission's payment reference and a transaction's description to find the best match.
 func calcDistance(submission *db.TrainingSubmission, transactionRecord *db.TransactionRecord) int {
 	lookForRef := strings.ToUpper(submission.PaymentReference)
 	trnDesc := strings.ToUpper(transactionRecord.Description)

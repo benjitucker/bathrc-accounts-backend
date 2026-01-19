@@ -73,6 +73,7 @@ func (t *TrainingSubmissionTable) GetAll() ([]*TrainingSubmission, error) {
 	return scanAllItems[*TrainingSubmission](t.t)
 }
 
+// GetAllOfState retrieves all training submissions from the table that match a specific submission state.
 func (t *TrainingSubmissionTable) GetAllOfState(submissionState string) ([]*TrainingSubmission, error) {
 	keyCond := expression.Key("submissionState").Equal(expression.Value(submissionState))
 

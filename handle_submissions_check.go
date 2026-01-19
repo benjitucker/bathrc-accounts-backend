@@ -15,6 +15,8 @@ const (
 	jotformLocation = "America/New_York"
 )
 
+// handleSubmissionsCheck fetches recent Jotform submissions and compares them against the provided list of database submissions.
+// It identifies any submissions missing from the database and processes them using handleTrainingRequest.
 func handleSubmissionsCheck(submissions []*db.TrainingSubmission) error {
 	loc, err := time.LoadLocation(jotformLocation)
 	if err != nil {

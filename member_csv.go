@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// parseMembersCSV parses a CSV byte slice containing member information into a slice of MemberRecord structs.
 func parseMembersCSV(data []byte) ([]*db.MemberRecord, error) {
 	reader := csv.NewReader(bytes.NewReader(data))
 	reader.TrimLeadingSpace = true

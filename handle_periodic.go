@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// handleHourly performs periodic tasks such as checking for missing submissions, sending payment reminders, and generating summaries.
 func handleHourly(testMode bool) error {
 
 	now := time.Now()
@@ -69,6 +70,7 @@ func handleHourly(testMode bool) error {
 	return nil
 }
 
+// handlePayReminder identifies submissions that haven't been paid for and sends reminder emails to the respective members.
 func handlePayReminder(receivedSubmissions []*db.TrainingSubmission) error {
 	for _, submission := range receivedSubmissions {
 		if submission.ReceivedRequestEmailSent == false {
@@ -180,6 +182,7 @@ func dateOnly(timeDate time.Time) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, timeDate.Location())
 }
 
+// writeEmails generates and sends summary emails for upcoming training sessions, grouped by venue and time.
 func writeEmails(until time.Time, submissions []*db.TrainingSubmission,
 	getMember func(id string) (*db.MemberRecord, error),
 	emailer func(subject, body string)) error {

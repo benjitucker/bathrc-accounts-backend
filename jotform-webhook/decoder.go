@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// DecodeBase64Multipart decodes a base64-encoded multipart payload from Jotform and unmarshals it into a FormData struct.
 func DecodeBase64Multipart(base64Payload string) (*FormData, error) {
 	raw, err := base64.StdEncoding.DecodeString(base64Payload)
 	if err != nil {

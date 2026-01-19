@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// handleTrainingAdmin processes administrative uploads from Jotform, such as transaction or member CSV files.
 func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook.TrainingAdminRawRequest) error {
 
 	var errs []error

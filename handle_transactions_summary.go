@@ -16,6 +16,7 @@ var venueCodes = map[string]string{
 	"Widbrook":   "WID",
 }
 
+// handleTransactionsSummary generates and emails a summary of transactions and their associated training submissions for the last two months.
 func handleTransactionsSummary() error {
 
 	var err error
@@ -65,6 +66,7 @@ func handleTransactionsSummary() error {
 	return nil
 }
 
+// writeEmail constructs and sends a CSV-formatted summary email of transactions and linked submissions.
 func writeEmail(transactions []*db.TransactionRecord, allSubmissions []*db.TrainingSubmission,
 	twoMonthsAgo time.Time, emailer func(subject, body string)) {
 
@@ -121,7 +123,7 @@ func fullDescription(t *db.TransactionRecord) string {
 	return name + " " + t.Description
 }
 
-// ToCSVLine returns a CSV line matching the original format
+// toCSVLine converts a transaction record and its linked submissions into a single CSV-formatted line.
 func toCSVLine(t *db.TransactionRecord, submissions []*db.TrainingSubmission, note string) string {
 
 	// Get all the venues

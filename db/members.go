@@ -81,6 +81,7 @@ func (t *MemberTable) GetAll() ([]*MemberRecord, error) {
 }
 */
 
+// PutAll saves multiple member records to the table, ensuring each record's ID is set to its member number.
 func (t *MemberTable) PutAll(records []*MemberRecord) error {
 
 	// the record id is the member number

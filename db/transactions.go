@@ -84,6 +84,7 @@ func (t *TransactionTable) Get(id string) (*TransactionRecord, error) {
 	return getItem[*TransactionRecord](t.t, id)
 }
 
+// GetAllOfTypeRecent retrieves transaction records of a specific type that occurred after the given start date.
 func (t *TransactionTable) GetAllOfTypeRecent(txnType string, startDate time.Time) ([]*TransactionRecord, error) {
 	startDateStr := startDate.Format(time.RFC3339)
 
@@ -122,6 +123,7 @@ func (t *TransactionTable) GetAll() ([]*TransactionRecord, error) {
 	return scanAllItems[*TransactionRecord](t.t)
 }
 
+// PutAll saves multiple transaction records to the table, ensuring each record's ID is set to its hash.
 func (t *TransactionTable) PutAll(records []*TransactionRecord) error {
 
 	// the record id is its hash

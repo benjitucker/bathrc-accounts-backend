@@ -13,6 +13,7 @@ type ReceivedPayment2Data struct {
 	FirstName, Venue, TrainingDate, Venue2, TrainingDate2, ExtraText1, ExtraText2, ExtraText3, ExtraText4 string
 }
 
+// SendReceivedPayment sends a payment confirmation email for one or more training submissions, including any problem descriptions.
 func (eh *EmailHandler) SendReceivedPayment(members []*db.MemberRecord, submissions []*db.TrainingSubmission, problemTexts []string) {
 	if len(members) == 0 {
 		fmt.Printf("Cannot send email, no valid membership numbers to send them too")

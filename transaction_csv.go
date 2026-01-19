@@ -15,7 +15,7 @@ const (
 	transactionRecordTTL = time.Hour * 24 * 365 * 2 // keep for 2 years
 )
 
-// parsePence converts a string like "20.00" or "-10.01" to int64 pence
+// parsePence converts a numeric currency string (e.g., "20.00", "-10.01") into an int64 representing the total value in pence.
 func parsePence(s string) (int64, error) {
 	negative := false
 	if strings.HasPrefix(s, "-") {
@@ -66,6 +66,7 @@ func splitDescription(s string) (first, last, rest string) {
 	}
 }
 
+// parseTransactionsCSV parses a CSV byte slice containing transaction records into a slice of TransactionRecord structs.
 func parseTransactionsCSV(csvData []byte) ([]*db.TransactionRecord, error) {
 	r := csv.NewReader(bytes.NewReader(csvData))
 	r.TrimLeadingSpace = true

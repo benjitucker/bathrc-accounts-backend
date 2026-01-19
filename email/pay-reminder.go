@@ -13,6 +13,7 @@ type PayReminder2Data struct {
 	FirstName, Venue, TrainingDate, Venue2, TrainingDate2, AccountNumber, SortCode, Reference, Amount string
 }
 
+// SendPayReminder sends a payment reminder email for one or more training submissions to the respective members.
 func (eh *EmailHandler) SendPayReminder(members []*db.MemberRecord, submissions []*db.TrainingSubmission) {
 	if len(members) == 0 {
 		fmt.Printf("Cannot send email, no valid membership numbers to send them too")

@@ -42,6 +42,7 @@ type HandlerParams struct {
 	MonitorEmail, ClubEmail, TrainingEmail string
 }
 
+// NewEmailHandler initializes a new EmailHandler with the provided context, SES client, and configuration parameters.
 func NewEmailHandler(ctx context.Context, sesClient *ses.Client, params HandlerParams) (*EmailHandler, error) {
 	result := &EmailHandler{
 		ctx:       ctx,
@@ -106,6 +107,7 @@ func NewEmailHandler(ctx context.Context, sesClient *ses.Client, params HandlerP
 	return result, nil
 }
 
+// SendEmail sends a simple text email to a single recipient using AWS SES.
 func (eh *EmailHandler) SendEmail(recipient, subject, body string) {
 
 	// Build the email input
@@ -139,6 +141,7 @@ func (eh *EmailHandler) SendEmail(recipient, subject, body string) {
 	fmt.Println("Email sent! Message ID:", *result.MessageId)
 }
 
+// SendEmailPretty sends a rich HTML and text email to multiple recipients using a specified template.
 func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string, templateData any) {
 
 	// Render templates
@@ -236,6 +239,7 @@ func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string
 	log.Println("Email sent with inline logo")
 }
 
+// Render evaluates the HTML, text, and subject templates for a given template name and data.
 func (eh *EmailHandler) Render(templateName string, data any) (subject, html, text string, err error) {
 	t, ok := eh.templates[templateName]
 	if !ok {
