@@ -165,8 +165,8 @@ func TestWriteEmails_FutureSubmissionsSection(t *testing.T) {
 	}
 
 	currentSession := at(4, 0)
-	futureSession := at(30, 0)
-	differentVenueFuture := at(30, 0)
+	futureSession := at(240, 0)
+	differentVenueFuture := at(280, 0)
 
 	submissions := []*db.TrainingSubmission{
 		{
