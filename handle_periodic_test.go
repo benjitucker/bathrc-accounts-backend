@@ -234,3 +234,61 @@ func TestWriteEmails_FutureSubmissionsSection(t *testing.T) {
 		t.Fatalf("unexpected future session from different venue included: %s", body)
 	}
 }
+
+func TestWriteEmails_RequestedLabels(t *testing.T) {
+	now := time.Now()
+	trainingDate := now.Add(2 * time.Hour)
+
+	submissions := []*db.TrainingSubmission{
+		{
+			TrainingDate:      trainingDate,
+			Venue:             "Arena1",
+			MembershipNumber:  "M020",
+			HorseName:         "TodayHorse",
+			FoundMemberRecord: true,
+			PaymentRecordId:   "P020",
+			RequestDate:       now,
+		},
+		{
+			TrainingDate:      trainingDate,
+			Venue:             "Arena1",
+			MembershipNumber:  "M021",
+			HorseName:         "YesterdayHorse",
+			FoundMemberRecord: true,
+			PaymentRecordId:   "P021",
+			RequestDate:       now.AddDate(0, 0, -1),
+		},
+		{
+			TrainingDate:      trainingDate,
+			Venue:             "Arena1",
+			MembershipNumber:  "M022",
+			HorseName:         "OldHorse",
+			FoundMemberRecord: true,
+			PaymentRecordId:   "P022",
+			RequestDate:       now.AddDate(0, 0, -2),
+		},
+	}
+
+	var body string
+	mockEmailer := func(subject, emailBody string) {
+		body = emailBody
+	}
+
+	err := writeEmails(now.Add(36*time.Hour), submissions, getMember, mockEmailer)
+	if err != nil {
+		t.Fatalf("writeEmails returned error: %v", err)
+	}
+
+	if !strings.Contains(body, "TodayHorse *Requested Today*") {
+		t.Fatalf("missing Requested Today label: %s", body)
+	}
+
+	if !strings.Contains(body, "YesterdayHorse *Requested Yesterday*") {
+		t.Fatalf("missing Requested Yesterday label: %s", body)
+	}
+
+	if strings.Contains(body, "OldHorse *Requested Today*") ||
+		strings.Contains(body, "OldHorse *Requested Yesterday*") {
+		t.Fatalf("unexpected Requested label for old request: %s", body)
+	}
+}

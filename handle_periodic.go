@@ -189,6 +189,8 @@ func writeEmails(until time.Time, submissions []*db.TrainingSubmission,
 	getMember func(id string) (*db.MemberRecord, error),
 	emailer func(subject, body string)) error {
 	var err error
+	today := dateOnly(time.Now())
+	yesterday := today.AddDate(0, 0, -1)
 
 	// Filter into a map of training dates
 	sessionSubmissions := make(map[time.Time]map[time.Time][]*db.TrainingSubmission)
@@ -267,9 +269,16 @@ func writeEmails(until time.Time, submissions []*db.TrainingSubmission,
 				} else if submission.PaymentDiscrepancy == true {
 					notPaidString = " *Incorrect Payment*"
 				}
+				requestedLabel := ""
+				requestDay := dateOnly(submission.RequestDate)
+				if requestDay.Equal(today) {
+					requestedLabel = " *Requested Today*"
+				} else if requestDay.Equal(yesterday) {
+					requestedLabel = " *Requested Yesterday*"
+				}
 				summaries[submission.Venue].messageLines = append(summaries[submission.Venue].messageLines,
 					fmt.Sprintf(" %s %s riding %s%s",
-						member.FirstName, member.LastName, submission.HorseName, notPaidString))
+						member.FirstName, member.LastName, submission.HorseName, notPaidString+requestedLabel))
 			}
 		}
 
