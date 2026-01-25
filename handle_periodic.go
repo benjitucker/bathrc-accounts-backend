@@ -281,6 +281,43 @@ func writeEmails(until time.Time, submissions []*db.TrainingSubmission,
 				_, _ = fmt.Fprintf(&builder, "%s\n", line)
 			}
 
+			type futureEntry struct {
+				member *db.MemberRecord
+				lines  []string
+			}
+			futureByMember := make(map[string]*futureEntry)
+			for _, submission := range submissions {
+				if submission.Venue != venue {
+					continue
+				}
+				if dateOnly(submission.TrainingDate).After(tDate) == false {
+					continue
+				}
+				member := summary.members[submission.MembershipNumber]
+				if member == nil {
+					continue
+				}
+				entry := futureByMember[submission.MembershipNumber]
+				if entry == nil {
+					entry = &futureEntry{member: member}
+					futureByMember[submission.MembershipNumber] = entry
+				}
+				entry.lines = append(entry.lines, fmt.Sprintf("%s %s riding %s",
+					formatCustomDate(submission.TrainingDate),
+					formatTime(submission.TrainingDate),
+					submission.HorseName))
+			}
+
+			if len(futureByMember) > 0 {
+				_, _ = fmt.Fprintf(&builder, "\nMembers with future training submissions at this venue:\n")
+				for _, entry := range futureByMember {
+					_, _ = fmt.Fprintf(&builder, " %s %s: %s\n",
+						entry.member.FirstName,
+						entry.member.LastName,
+						strings.Join(entry.lines, "; "))
+				}
+			}
+
 			_, _ = fmt.Fprintf(&builder, "\n\nMember email addresses\n")
 
 			for _, member := range summary.members {

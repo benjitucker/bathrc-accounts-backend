@@ -156,3 +156,81 @@ func TestWriteEmails_MultipleDatesAndTimes(t *testing.T) {
 			formattedNextDay, arena2Email)
 	}
 }
+
+func TestWriteEmails_FutureSubmissionsSection(t *testing.T) {
+	now := time.Date(2026, 2, 10, 9, 0, 0, 0, time.UTC)
+
+	at := func(hours, minutes int) time.Time {
+		return now.Add(time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute)
+	}
+
+	currentSession := at(4, 0)
+	futureSession := at(30, 0)
+	differentVenueFuture := at(30, 0)
+
+	submissions := []*db.TrainingSubmission{
+		{
+			TrainingDate:      currentSession,
+			Venue:             "Arena1",
+			MembershipNumber:  "M010",
+			HorseName:         "Comet",
+			FoundMemberRecord: true,
+			PaymentRecordId:   "P010",
+		},
+		{
+			TrainingDate:      futureSession,
+			Venue:             "Arena1",
+			MembershipNumber:  "M010",
+			HorseName:         "Comet",
+			FoundMemberRecord: true,
+			PaymentRecordId:   "P011",
+		},
+		{
+			TrainingDate:      differentVenueFuture,
+			Venue:             "Arena2",
+			MembershipNumber:  "M010",
+			HorseName:         "Comet",
+			FoundMemberRecord: true,
+			PaymentRecordId:   "P012",
+		},
+	}
+
+	var emails []struct {
+		subject string
+		body    string
+	}
+
+	mockEmailer := func(subject, body string) {
+		emails = append(emails, struct {
+			subject string
+			body    string
+		}{subject, body})
+	}
+
+	err := writeEmails(now.Add(time.Hour*36), submissions, getMember, mockEmailer)
+	if err != nil {
+		t.Fatalf("writeEmails returned error: %v", err)
+	}
+
+	if len(emails) != 1 {
+		t.Fatalf("expected 1 email, got %d", len(emails))
+	}
+
+	body := emails[0].body
+	if !strings.Contains(body, "Members with future training submissions at this venue:") {
+		t.Fatalf("missing future submissions section: %s", body)
+	}
+
+	if !strings.Contains(body, "John Doe:") {
+		t.Fatalf("missing member name in future submissions section: %s", body)
+	}
+
+	expectedSession := formatCustomDate(futureSession) + " " + formatTime(futureSession) + " riding Comet"
+	if !strings.Contains(body, expectedSession) {
+		t.Fatalf("missing future session details (%s): %s", expectedSession, body)
+	}
+
+	if strings.Contains(body, formatCustomDate(differentVenueFuture)) {
+		t.Fatalf("unexpected future session from different venue included: %s", body)
+	}
+}
