@@ -31,10 +31,11 @@ type EmailTemplates struct {
 }
 
 type EmailHandler struct {
-	ctx       context.Context
-	sesClient *ses.Client
-	templates map[string]EmailTemplates
-	params    HandlerParams
+	ctx          context.Context
+	sesClient    *ses.Client
+	templates    map[string]EmailTemplates
+	params       HandlerParams
+	appIntroFile []byte
 }
 
 type HandlerParams struct {
@@ -143,6 +144,11 @@ func (eh *EmailHandler) SendEmail(recipient, subject, body string) {
 
 // SendEmailPretty sends a rich HTML and text email to multiple recipients using a specified template.
 func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string, templateData any) {
+	eh.SendEmailPrettyAttach(recipients, templateName, templateData, "", nil)
+}
+
+func (eh *EmailHandler) SendEmailPrettyAttach(
+	recipients []string, templateName string, templateData any, attachName string, attachBytes []byte) {
 
 	// Render templates
 	subject, htmlBody, textBody, err := eh.Render(templateName, templateData)
@@ -218,6 +224,21 @@ func (eh *EmailHandler) SendEmailPretty(recipients []string, templateName string
 
 	// close alternative
 	raw.WriteString("--" + altBoundary + "--\r\n")
+
+	// ---------- PDF attachment ----------
+	if attachName != "" && attachBytes != nil {
+		raw.WriteString("--" + mixedBoundary + "\r\n")
+		raw.WriteString("Content-Type: application/pdf; name=\"" + attachName + "\"\r\n")
+		raw.WriteString("Content-Transfer-Encoding: base64\r\n")
+		raw.WriteString("Content-Disposition: attachment; filename=\"" + attachName + "\"\r\n\r\n")
+
+		encodedPdf := base64.StdEncoding.EncodeToString(attachBytes)
+		for len(encodedPdf) > 76 {
+			raw.WriteString(encodedPdf[:76] + "\r\n")
+			encodedPdf = encodedPdf[76:]
+		}
+		raw.WriteString(encodedPdf + "\r\n")
+	}
 
 	// close mixed
 	raw.WriteString("--" + mixedBoundary + "--\r\n")

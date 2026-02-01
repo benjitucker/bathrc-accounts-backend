@@ -77,7 +77,14 @@ func (t *MemberTable) Get(id string) (*MemberRecord, error) {
 
 /*
 func (t *MemberTable) GetAll() ([]*MemberRecord, error) {
-	return scanAllItems[*MemberRecord](t.t)
+	records, err := scanAllItems[*MemberRecord](t.t)
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range records {
+		t.cache[record.MemberNumber] = record
+	}
+	return records, nil
 }
 */
 

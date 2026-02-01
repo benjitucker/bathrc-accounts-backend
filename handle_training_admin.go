@@ -38,9 +38,20 @@ func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook
 
 	members, err := parseMembersCSV(uploadedCSVData)
 	if err == nil {
-		return handleMembers(members)
+		err = handleMembers(members)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	} else {
+		errs = append(errs, fmt.Errorf("failed members parsing: %w", err))
 	}
-	errs = append(errs, fmt.Errorf("failed menbers parsing: %w", err))
+
+	if request.SendEmailsNow != "OFF" && members != nil {
+		err = handleSendTrainingAppIntroEmails(members)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
 
 	return errors.Join(errs...)
 }
