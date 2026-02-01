@@ -23,8 +23,7 @@ func (eh *EmailHandler) SendAppIntro(member *db.MemberRecord) {
 			return
 		}
 	}
-	//email := member.Email TODO
-	email := "ben@churchfarmmonktonfarleigh.co.uk"
+	email := member.Email
 	eh.SendEmailPrettyAttach([]string{email}, "intro", &IntroData{
 		FirstName:    member.FirstName,
 		MemberNumber: member.MemberNumber,
