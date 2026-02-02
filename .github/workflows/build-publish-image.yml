@@ -53,7 +53,7 @@ jobs:
 
       # Trigger the deployment build using repository_dispatch
       - name: Deploy
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.REPOSITORY_DISPATCH_PAT }}
           repository: benjitucker/bathrc-accounts-terraform
