@@ -80,7 +80,9 @@ func handleTransactions(records []*db.TransactionRecord) error {
 		// Find the closest matching payment
 		for _, record := range records {
 			// not before the submission was made, note the transaction date does not include the time
-			if record.Date.Before(submission.RequestDate) {
+			transactionDate := dateOnly(record.Date)
+			submissionDate := dateOnly(submission.RequestDate)
+			if transactionDate.Before(submissionDate) {
 				continue
 			}
 			// not already attached to a submission
