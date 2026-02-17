@@ -54,8 +54,8 @@ func handleHourly(testMode bool) error {
 		until = now.Add(time.Hour * 24 * 31)
 	}
 
-	// Email a summary of training submissions to the club email lunchtime on the day before
-	if now.Hour() == 12 || testMode == true {
+	// Email a summary of training submissions to the club email lunchtime and 8pm two days before
+	if now.Hour() == 12 || now.Hour() == 20 || testMode == true {
 		err := handleTrainingSummary(submissions, until)
 		if err != nil {
 			return err
