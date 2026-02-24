@@ -213,9 +213,20 @@ func writeEmails(until time.Time, submissions []*db.TrainingSubmission,
 		messageLines []string
 	}
 
+	// Sort tTimes to ensure they appear in chronological order
+	var tTimes []time.Time
 	for tDate, daySubs := range sessionSubmissions {
+		tTimes = tTimes[:0]
+		for tTime := range daySubs {
+			tTimes = append(tTimes, tTime)
+		}
+		sort.Slice(tTimes, func(i, j int) bool {
+			return tTimes[i].Before(tTimes[j])
+		})
+
 		summaries := make(map[string]*venueSummary)
-		for tTime, submissions := range daySubs {
+		for _, tTime := range tTimes {
+			submissions := daySubs[tTime]
 
 			// Sort submissions: Paid first, then Incorrect Payment, then NOT PAID
 			// Within each group, sort by request date
@@ -250,11 +261,28 @@ func writeEmails(until time.Time, submissions []*db.TrainingSubmission,
 				if summaries[submission.Venue] == nil {
 					summaries[submission.Venue] = &venueSummary{
 						members:      map[string]*db.MemberRecord{},
-						messageLines: []string{formatTime(tTime), ""},
+						messageLines: []string{},
 					}
 				}
 
-				member := summaries[submission.Venue].members[submission.MembershipNumber]
+				// If this is a new time for this venue, add a header
+				summary := summaries[submission.Venue]
+				timeHeader := formatTime(tTime)
+				foundHeader := false
+				for _, line := range summary.messageLines {
+					if line == timeHeader {
+						foundHeader = true
+						break
+					}
+				}
+				if !foundHeader {
+					if len(summary.messageLines) > 0 {
+						summary.messageLines = append(summary.messageLines, "")
+					}
+					summary.messageLines = append(summary.messageLines, timeHeader, "")
+				}
+
+				member := summary.members[submission.MembershipNumber]
 				if member == nil {
 					member, err = getMember(submission.MembershipNumber)
 					if err != nil {

@@ -292,3 +292,70 @@ func TestWriteEmails_RequestedLabels(t *testing.T) {
 		t.Fatalf("unexpected Requested label for old request: %s", body)
 	}
 }
+
+func TestWriteEmails_HourlyLists(t *testing.T) {
+	now := time.Date(2026, 1, 3, 12, 0, 0, 0, time.UTC)
+
+	// Same day, different times
+	morning := time.Date(2026, 1, 4, 9, 0, 0, 0, time.UTC)
+	evening := time.Date(2026, 1, 4, 18, 0, 0, 0, time.UTC)
+
+	submissions := []*db.TrainingSubmission{
+		{
+			TrainingDate:      morning,
+			Venue:             "Arena1",
+			MembershipNumber:  "M001",
+			HorseName:         "Lightning",
+			FoundMemberRecord: true,
+		},
+		{
+			TrainingDate:      evening,
+			Venue:             "Arena1",
+			MembershipNumber:  "M002",
+			HorseName:         "Thunder",
+			FoundMemberRecord: true,
+		},
+	}
+
+	var emails []struct {
+		subject string
+		body    string
+	}
+
+	mockEmailer := func(subject, body string) {
+		emails = append(emails, struct {
+			subject string
+			body    string
+		}{subject, body})
+	}
+
+	err := writeEmails(now.Add(time.Hour*48), submissions, getMember, mockEmailer)
+	if err != nil {
+		t.Fatalf("writeEmails returned error: %v", err)
+	}
+
+	if len(emails) == 0 {
+		t.Fatalf("expected at least one email, got 0")
+	}
+
+	arena1Email := ""
+	for _, e := range emails {
+		if strings.Contains(e.subject, "Arena1") {
+			arena1Email = e.body
+		}
+	}
+
+	if arena1Email == "" {
+		t.Fatalf("Arena1 email missing")
+	}
+
+	morningStr := formatTime(morning)
+	eveningStr := formatTime(evening)
+
+	if !strings.Contains(arena1Email, morningStr) {
+		t.Errorf("Email missing morning time: %s", morningStr)
+	}
+	if !strings.Contains(arena1Email, eveningStr) {
+		t.Errorf("Email missing evening time: %s", eveningStr)
+	}
+}
