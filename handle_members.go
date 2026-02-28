@@ -4,6 +4,7 @@ import (
 	"benjitucker/bathrc-accounts/db"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -71,6 +72,18 @@ correct information.
 				err = trainTable.PutAll(linkedSubmissions)
 				if err != nil {
 					return err
+				}
+
+				// TODO - delete the submission from the training table in Jotform
+				sid, _, err := parseId(submission.GetID())
+				if err == nil {
+					sidInt, err := strconv.ParseInt(sid, 10, 64)
+					if err == nil {
+						_, err = jotformClient.DeleteSubmission(sidInt)
+						if err != nil {
+							return fmt.Errorf("failed deleting submission id %s: %w", sid, err)
+						}
+					}
 				}
 				continue
 			}

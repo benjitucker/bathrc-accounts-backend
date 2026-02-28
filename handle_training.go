@@ -19,6 +19,21 @@ func makeId(submissionId string, entryIndex int) string {
 	return fmt.Sprintf("%s-%d", submissionId, entryIndex)
 }
 
+func parseId(id string) (string, int, error) {
+	parts := strings.Split(id, "-")
+	if len(parts) < 2 {
+		return "", 0, fmt.Errorf("invalid id: %s", id)
+	}
+
+	submissionId := strings.Join(parts[:len(parts)-1], "-")
+	entryIndex, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid entry index in id %s: %w", id, err)
+	}
+
+	return submissionId, entryIndex, nil
+}
+
 // handleTrainingRequest processes a single training request submission from Jotform, creating multiple database entries if needed.
 func handleTrainingRequest(submissionId string, request jotform_webhook.TrainingRequest) error {
 
