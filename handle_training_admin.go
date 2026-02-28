@@ -1,6 +1,7 @@
 package main
 
 import (
+	"benjitucker/bathrc-accounts/db"
 	"benjitucker/bathrc-accounts/jotform-webhook"
 	"errors"
 	"fmt"
@@ -30,28 +31,43 @@ func handleTrainingAdmin(form *jotform_webhook.FormData, request jotform_webhook
 		uploadedCSVData = append(uploadedCSVData, []byte(*request.ExtraCSV)...)
 	}
 
-	transactions, err := parseTransactionsCSV(uploadedCSVData)
-	if err == nil {
-		return handleTransactions(transactions)
-	}
-	errs = append(errs, fmt.Errorf("failed transaction parsing: %w", err))
+	var transactions []*db.TransactionRecord
+	var members []*db.MemberRecord
 
-	members, err := parseMembersCSV(uploadedCSVData)
-	if err == nil {
+	transactions, err = parseTransactionsCSV(uploadedCSVData)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed transaction parsing: %w", err))
+		members, err = parseMembersCSV(uploadedCSVData)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed members parsing: %w", err))
+			// return errors only if all parsings fail
+			return errors.Join(errs...)
+		}
+	}
+
+	if members != nil {
 		err = handleMembers(members)
 		if err != nil {
-			errs = append(errs, err)
+			return err
 		}
-	} else {
-		errs = append(errs, fmt.Errorf("failed members parsing: %w", err))
 	}
 
-	if request.SendEmailsNow != "OFF" && members != nil {
+	if transactions != nil {
+		err = handleTransactions(transactions)
+		if err != nil {
+			return err
+		}
+	}
+
+	if request.SendEmailsNow != "OFF" {
+		if members == nil {
+			return errors.New("no members data to send emails for")
+		}
 		err = handleSendTrainingAppIntroEmails(members)
 		if err != nil {
-			errs = append(errs, err)
+			return err
 		}
 	}
 
-	return errors.Join(errs...)
+	return nil
 }
