@@ -46,9 +46,9 @@ func handleHourly(testMode bool) error {
 		return err
 	}
 
-	// Generate Training Summaries for today and the next two days
+	// Generate Training Summaries for today and the next four days
 	aDay := time.Hour * 24
-	until := dateOnly(now).Add(3 * aDay)
+	until := dateOnly(now).Add(5 * aDay)
 	if testMode == true {
 		// Extend the summary period out to a month in test mode
 		until = now.Add(time.Hour * 24 * 31)
