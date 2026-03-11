@@ -52,6 +52,8 @@ func handleMembers(records []*db.MemberRecord) error {
 			return err
 		}
 
+		newMember := false
+
 		if submission.FoundMemberRecord == false {
 
 			if updatedMemberRecord == nil {
@@ -88,6 +90,7 @@ correct information.
 				continue
 			}
 
+			newMember = true
 			submission.FoundMemberRecord = true
 			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
@@ -101,7 +104,7 @@ correct information.
 		// membership number should be valid at this point
 
 		// note: this will be the case for brand-new members too
-		if submission.ActualCurrMem != submission.RequestCurrMem {
+		if submission.ActualCurrMem != submission.RequestCurrMem || newMember {
 
 			// [re] check the membership status if there is an update
 			if updatedMemberRecord != nil {
@@ -147,10 +150,23 @@ correct information.
 
 			// no update to the member record was received so the problem remains. Time to send
 			// the received request message to the member with a warning
-			err = sendEmailsAndUpdate(fmt.Sprintf(
-				`However, we find that your membership runs out before the training session. Please renew your memebrship with Sport80.`))
-			if err != nil {
-				return err
+			if submission.ActualCurrMem == false {
+				err = sendEmailsAndUpdate(fmt.Sprintf(
+					`However, we find that your membership runs out before the training session. Please renew your memebrship with Sport80.`))
+				if err != nil {
+					return err
+				}
+				continue
+			}
+
+			// they made a request which said they were not a member but they were
+			if submission.RequestCurrMem == false {
+				err = sendEmailsAndUpdate(fmt.Sprintf(
+					`However, we find that you do have a valid membership and so the payment amount is incorrect. Please contact the club and we will refund the difference.`))
+				if err != nil {
+					return err
+				}
+				continue
 			}
 		}
 	}
