@@ -6,8 +6,12 @@ import (
 	"time"
 )
 
-// TODO - could be optimised by assuming UK timezone always
 func ParseSessionDate(dateStr, tz string) (time.Time, error) {
+	londonLoc, err := time.LoadLocation("Europe/London")
+	if err != nil {
+		return time.Time{}, fmt.Errorf("load London location failed: %w", err)
+	}
+
 	zone := tz
 	if i := strings.Index(zone, " "); i > 0 {
 		zone = zone[:i]
@@ -25,7 +29,7 @@ func ParseSessionDate(dateStr, tz string) (time.Time, error) {
 
 	for _, l := range layouts {
 		if t, err := time.ParseInLocation(l, dateStr, loc); err == nil {
-			return t, nil
+			return t.In(londonLoc), nil
 		}
 	}
 
