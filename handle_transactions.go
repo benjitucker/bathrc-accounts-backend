@@ -42,6 +42,20 @@ func handleTransactions(records []*db.TransactionRecord) error {
 		return err
 	}
 
+	// We are getting BP entries coming in which are bill payments from the payers perspective.
+	bpRecords, err := transactionTable.GetAllOfTypeRecent("BP", time.Now().Add(-recentTransactionsDuration))
+	if err != nil {
+		return err
+	}
+	// Filter out negative amounts and append positive amounts to records
+	for _, bpRecord := range bpRecords {
+		if bpRecord.AmountPence > 0 {
+			records = append(records, bpRecord)
+		}
+	}
+
+	log.Printf("Got %d transaction records successfully", len(records))
+
 	// Get all unpaid training submissions
 	receivedSubmissions, err := trainTable.GetAllOfState(db.ReceivedSubmissionState)
 	if err != nil {

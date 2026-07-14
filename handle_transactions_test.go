@@ -99,6 +99,18 @@ func Test_calcDistance(t *testing.T) {
 			},
 			want: 3,
 		},
+		{
+			name: "raytest",
+			args: args{
+				submission: &db.TrainingSubmission{
+					PaymentReference: "KIAH",
+				},
+				transactionRecord: &db.TransactionRecord{
+					Description: "J KIAH",
+				},
+			},
+			want: 0,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
