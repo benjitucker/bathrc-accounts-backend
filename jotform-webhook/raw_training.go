@@ -99,8 +99,14 @@ func (r *TrainingRawRequest) UnmarshalJSON(b []byte) error {
 				_ = json.Unmarshal(v, &sess)
 
 				if sess.Date != "" {
-					// Parse session date+timezone
-					start, err := ParseSessionDate(sess.Date, sess.Timezone)
+					var start time.Time
+					var err error
+					if sess.Timezone != "" {
+						// Parse session date+timezone
+						start, err = ParseSessionDateNew(sess.Date, sess.Timezone)
+					} else {
+						start, err = ParseSessionDate(sess.Date)
+					}
 					if err != nil {
 						return fmt.Errorf("session %d date parse failed: %w", i+1, err)
 					}

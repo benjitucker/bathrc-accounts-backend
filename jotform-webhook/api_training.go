@@ -86,7 +86,7 @@ func (r *TrainingRawRequestWithID) UnmarshalJSON(b []byte) error {
 		// time comes in in the America/New_York zone
 		sess.Timezone = "America/New_York"
 
-		start, err := ParseSessionDate(sess.Date, sess.Timezone)
+		start, err := ParseSessionDateNew(sess.Date, sess.Timezone)
 		if err != nil {
 			return fmt.Errorf("session parse failed: %w", err)
 		}

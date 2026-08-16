@@ -9,7 +9,7 @@ func TestParseSessionDate_EDT(t *testing.T) {
 	dateStr := "2026-03-19 15:00"
 	tz := "America/New_York"
 
-	result, err := ParseSessionDate(dateStr, tz)
+	result, err := ParseSessionDateNew(dateStr, tz)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -26,6 +26,53 @@ func TestParseSessionDate_EDT(t *testing.T) {
 	expectedDay := 19
 	expectedHour := 19
 	expectedMinute := 0
+
+	if result.Year() != expectedYear {
+		t.Errorf("expected year %d, got %d", expectedYear, result.Year())
+	}
+
+	if result.Month() != expectedMonth {
+		t.Errorf("expected month %v, got %v", expectedMonth, result.Month())
+	}
+
+	if result.Day() != expectedDay {
+		t.Errorf("expected day %d, got %d", expectedDay, result.Day())
+	}
+
+	if result.Hour() != expectedHour {
+		t.Errorf("expected hour %d, got %d", expectedHour, result.Hour())
+	}
+
+	if result.Minute() != expectedMinute {
+		t.Errorf("expected minute %d, got %d", expectedMinute, result.Minute())
+	}
+
+	if result.Location().String() != "Europe/London" {
+		t.Errorf("expected location %s, got %s", "Europe/London", result.Location().String())
+	}
+}
+
+func TestParseSessionDate_EDT_2(t *testing.T) {
+	dateStr := "2026-08-20 12:15"
+	tz := "America/New_York"
+
+	result, err := ParseSessionDateNew(dateStr, tz)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	if result.IsZero() {
+		t.Error("expected non-zero time")
+	}
+
+	// 2026-03-19 15:00 America/New_York (EDT, UTC-4)
+	// UTC: 2026-03-19 19:00
+	// London: 2026-03-19 19:00 GMT (no BST yet)
+	expectedYear := 2026
+	expectedMonth := time.August
+	expectedDay := 20
+	expectedHour := 17
+	expectedMinute := 15
 
 	if result.Year() != expectedYear {
 		t.Errorf("expected year %d, got %d", expectedYear, result.Year())
@@ -78,7 +125,7 @@ func TestParseSessionDate_Summertime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseSessionDate(tt.dateStr, tz)
+			result, err := ParseSessionDateNew(tt.dateStr, tz)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

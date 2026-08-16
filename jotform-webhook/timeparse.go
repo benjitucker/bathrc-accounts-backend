@@ -6,7 +6,26 @@ import (
 	"time"
 )
 
-func ParseSessionDate(dateStr, tz string) (time.Time, error) {
+func parseInLocation(dateStr string, loc *time.Location) (time.Time, error) {
+	layouts := []string{
+		"2006-01-02 15:04",
+		time.RFC3339,
+	}
+
+	for _, l := range layouts {
+		if t, err := time.ParseInLocation(l, dateStr, loc); err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("unsupported date format: %s", dateStr)
+}
+
+func ParseSessionDate(dateStr string) (time.Time, error) {
+	return parseInLocation(dateStr, time.Local)
+}
+
+func ParseSessionDateNew(dateStr, tz string) (time.Time, error) {
 	londonLoc, err := time.LoadLocation("Europe/London")
 	if err != nil {
 		return time.Time{}, fmt.Errorf("load London location failed: %w", err)
@@ -22,16 +41,9 @@ func ParseSessionDate(dateStr, tz string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("load location failed: %w", err)
 	}
 
-	layouts := []string{
-		"2006-01-02 15:04",
-		time.RFC3339,
+	var t time.Time
+	if t, err = parseInLocation(dateStr, loc); err != nil {
+		return time.Time{}, fmt.Errorf("parse date failed: %w", err)
 	}
-
-	for _, l := range layouts {
-		if t, err := time.ParseInLocation(l, dateStr, loc); err == nil {
-			return t.In(londonLoc), nil
-		}
-	}
-
-	return time.Time{}, fmt.Errorf("unsupported date format: %s", dateStr)
+	return t.In(londonLoc), nil
 }
