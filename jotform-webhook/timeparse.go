@@ -22,7 +22,12 @@ func parseInLocation(dateStr string, loc *time.Location) (time.Time, error) {
 }
 
 func ParseSessionDate(dateStr string) (time.Time, error) {
-	return parseInLocation(dateStr, time.Local)
+	londonLoc, err := time.LoadLocation("Europe/London")
+	if err != nil {
+		return time.Time{}, fmt.Errorf("load London location failed: %w", err)
+	}
+
+	return parseInLocation(dateStr, londonLoc)
 }
 
 func ParseSessionDateNew(dateStr, tz string) (time.Time, error) {
