@@ -58,6 +58,11 @@ func parseMembersCSV(data []byte) ([]*db.MemberRecord, error) {
 			MembershipValidTo:    parseDate(get("BATH RIDING CLUB Membership Valid To")),
 		}
 
+		// Ignore invalid members with no membership number
+		if record.MemberNumber == "" || record.ClubMembershipStatus == "Invalid" {
+			continue
+		}
+
 		// Check we have all the mandatory fields
 		if record.FirstName == "" ||
 			record.LastName == "" ||
