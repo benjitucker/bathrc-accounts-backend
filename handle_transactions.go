@@ -154,7 +154,9 @@ func handleTransactions(records []*db.TransactionRecord) error {
 		}
 		if lapsedMembership == true {
 			problemTexts = append(problemTexts, fmt.Sprintf(
-				`Your membership runs out before the training session. Please renew your memebrship with Sport80.`))
+				`Your membership runs out before the training session. `+
+					`If you not already done so, please renew your membership with Sport80 before the session.`+
+					`This does not affect your booking.`))
 		}
 
 		if totalAmount != matchedRecord.AmountPence {
@@ -163,7 +165,8 @@ func handleTransactions(records []*db.TransactionRecord) error {
 			}
 
 			problemTexts = append(problemTexts, fmt.Sprintf(
-				`The payment amount is incorrect. The requested session[s] total price is %s, payment received %s.`,
+				`The payment amount is incorrect. The requested session[s] total price is %s, payment received %s.`+
+					`This does not affect your booking.`,
 				formatAmount(totalAmount), formatAmount(matchedRecord.AmountPence)))
 		}
 

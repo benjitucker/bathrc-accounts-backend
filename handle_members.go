@@ -152,7 +152,9 @@ correct information.
 			// the received request message to the member with a warning
 			if submission.ActualCurrMem == false {
 				err = sendEmailsAndUpdate(fmt.Sprintf(
-					`However, we find that your membership runs out before the training session. Please renew your memebrship with Sport80.`))
+					`However, we find that your membership runs out before the training session. ` +
+						`If you not already done so, please renew your membership with Sport80 before the session.` +
+						`This does not affect your booking.`))
 				if err != nil {
 					return err
 				}
