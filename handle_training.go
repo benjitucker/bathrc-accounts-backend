@@ -129,7 +129,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 
 		err := trainTable.Put(submission, makeId(submissionId, entryIndex))
 		if err != nil {
-			return fmt.Errorf("failed to store training submission for entry %d: %w", entryIndex, err)
+			return fmt.Errorf("failed to store training submission %s for entry %d: %w", submissionId, entryIndex, err)
 		}
 
 		// Check membership number
@@ -146,7 +146,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			// update
 			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
-				return fmt.Errorf("failed to update submission after membership record not found for entry %d: %w", entryIndex, err)
+				return fmt.Errorf("failed to update submission %s after membership record not found for entry %d: %w", submissionId, entryIndex, err)
 			}
 			continue
 		}
@@ -184,7 +184,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			// update
 			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to update submission %s after membership check for entry %d: %w", submissionId, entryIndex, err)
 			}
 
 			continue
@@ -212,7 +212,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			if submission.DuplicateOfId != "" {
 				dupSubmission, err := trainTable.Get(submission.DuplicateOfId)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to get submission %s duplicate %s: %w", submissionId, submission.DuplicateOfId, err)
 				}
 				dupOfSubmissions = append(dupOfSubmissions, dupSubmission)
 			}
@@ -228,7 +228,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			submission.ReceivedRequestEmailSent = false
 			err := trainTable.Put(submission, submission.GetID())
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to update submission %s for email sent flag: %w", submissionId, err)
 			}
 		}
 	}
