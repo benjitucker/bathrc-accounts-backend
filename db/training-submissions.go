@@ -30,6 +30,7 @@ type TrainingSubmission struct {
 	AlreadyBooked             bool      `dynamodbav:"alreadyBooked"`
 	AlreadyBookedSubmissionId bool      `dynamodbav:"alreadyBookedSubmissionId"`
 	LinkedSubmissionIds       []string  `dynamodbav:"linkedSubmissionIds"`
+	DuplicateOfId             string    `dynamodbav:"duplicateOfId"`
 	ReceivedRequestEmailSent  bool      `dynamodbav:"receivedRequestEmailSent"`
 	PayReminderEmailSent      bool      `dynamodbav:"payReminderEmailSent"`
 	PaymentDiscrepancy        bool      `dynamodbav:"paymentDiscrepancy"`

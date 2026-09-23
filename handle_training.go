@@ -34,11 +34,30 @@ func parseId(id string) (string, int, error) {
 	return submissionId, entryIndex, nil
 }
 
+func findDuplicate(submissions []*db.TrainingSubmission, submission *db.TrainingSubmission) *db.TrainingSubmission {
+	for _, sub := range submissions {
+		if sub.SubmissionState != db.DroppedSubmissionState &&
+			sub.MembershipNumber == submission.MembershipNumber &&
+			sub.TrainingDate.Equal(submission.TrainingDate) &&
+			sub.Venue == submission.Venue {
+			return sub
+		}
+	}
+	return nil
+}
+
 // handleTrainingRequest processes a single training request submission from Jotform, creating multiple database entries if needed.
 func handleTrainingRequest(submissionId string, request jotform_webhook.TrainingRequest) error {
 
-	var submissions []*db.TrainingSubmission
+	var newSubmissions []*db.TrainingSubmission
 	rawRequest := request.GetRawRequest()
+	hasDuplicate := false
+
+	// Get all received submissions to check for duplicates
+	receivedSubmissions, err := trainTable.GetAllOfStateRecent(db.ReceivedSubmissionState, time.Now())
+	if err != nil {
+		return err
+	}
 
 	for _, entry := range rawRequest.Entries {
 
@@ -51,7 +70,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 		currentMembership := len(entry.CurrentMembershipSelection) > 0 &&
 			len(entry.CurrentMembershipSelection[0]) > 0
 
-		submissions = append(submissions, &db.TrainingSubmission{
+		newSubmission := db.TrainingSubmission{
 			SubmissionState:  db.ReceivedSubmissionState,
 			TrainingDate:     entry.SelectSession.StartLocal,
 			PayByDate:        entry.SelectSession.StartLocal.Add(payBeforeSessionDuration),
@@ -68,15 +87,38 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			LapsedMembership:         false,
 			AlreadyBooked:            false,
 			ReceivedRequestEmailSent: true,
-		})
+		}
+
+		// Ignore duplicate submissions in the same request
+		if findDuplicate(newSubmissions, &newSubmission) != nil {
+			continue
+		}
+
+		// Check for duplicate submission with the same member and training time.
+		duplicate := findDuplicate(receivedSubmissions, &newSubmission)
+		if duplicate != nil {
+			newSubmission.DuplicateOfId = duplicate.GetID()
+			hasDuplicate = true
+		}
+
+		newSubmissions = append(newSubmissions, &newSubmission)
 	}
 
 	memberRecords := make([]*db.MemberRecord, 2)
 	sendReceivedRequestEmail := true
 
-	for entryIndex, submission := range submissions {
+	for entryIndex, submission := range newSubmissions {
+		// If any of the entries for the request has a duplicate, drop them all
+		if hasDuplicate {
+			submission.SubmissionState = db.DroppedSubmissionState
+			err = dropTrainingSubmission(submission)
+			if err != nil {
+				return err
+			}
+		}
+
 		// fill the cross-references
-		for i := range submissions {
+		for i := range newSubmissions {
 			submission.LinkedSubmissionIds =
 				append(submission.LinkedSubmissionIds, makeId(submissionId, i))
 		}
@@ -160,9 +202,25 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 	}
 
 	if sendReceivedRequestEmail {
-		emailHandler.SendReceivedRequest(memberRecords, submissions, "")
+		// Check if any submission was a duplicate that was already paid
+		var dupOfSubmissions []*db.TrainingSubmission
+		for _, submission := range newSubmissions {
+			if submission.DuplicateOfId != "" {
+				dupSubmission, err := trainTable.Get(submission.DuplicateOfId)
+				if err != nil {
+					return err
+				}
+				dupOfSubmissions = append(dupOfSubmissions, dupSubmission)
+			}
+		}
+
+		if hasDuplicate && len(dupOfSubmissions) > 0 {
+			emailHandler.SendReceivedDuplicateRequest(memberRecords, newSubmissions, dupOfSubmissions)
+		} else {
+			emailHandler.SendReceivedRequest(memberRecords, newSubmissions, "")
+		}
 	} else {
-		for _, submission := range submissions {
+		for _, submission := range newSubmissions {
 			submission.ReceivedRequestEmailSent = false
 			err := trainTable.Put(submission, submission.GetID())
 			if err != nil {
@@ -189,4 +247,24 @@ func membershipDateCheck(member *db.MemberRecord, target *time.Time) bool {
 	}
 	return (target.Equal(*start) || target.After(*start)) &&
 		(target.Equal(*end) || target.Before(*end))
+}
+
+// dropTrainingSubmission drops a training submission from Jotform. It does no update the database.
+func dropTrainingSubmission(submission *db.TrainingSubmission) error {
+	sid, _, err := parseId(submission.GetID())
+	if err != nil {
+		return err
+	}
+
+	sidInt, err := strconv.ParseInt(sid, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	_, err = jotformClient.DeleteSubmission(sidInt)
+	if err != nil {
+		return fmt.Errorf("failed deleting submission id %s: %w", sid, err)
+	}
+
+	return nil
 }
