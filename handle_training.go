@@ -56,14 +56,14 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 	// Get all received submissions to check for duplicates
 	receivedSubmissions, err := trainTable.GetAllOfStateRecent(db.ReceivedSubmissionState, time.Now())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get received submissions for duplicate check: %w", err)
 	}
 
 	for _, entry := range rawRequest.Entries {
 
 		amount, err := strconv.ParseFloat(entry.Amount, 64)
 		if err != nil {
-			return fmt.Errorf("amount float number (%s): %w", entry.Amount, err)
+			return fmt.Errorf("failed to parse amount float number (%s): %w", entry.Amount, err)
 		}
 		amountPence := math.Floor(amount * 100)
 		requestDate := time.Time(rawRequest.SubmitDate)
@@ -107,14 +107,18 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 	memberRecords := make([]*db.MemberRecord, 2)
 	sendReceivedRequestEmail := true
 
+	// If any of the entries for the request has a duplicate, drop this submission
+	if hasDuplicate {
+		err = dropJotformTrainingSubmission(submissionId)
+		if err != nil {
+			return fmt.Errorf("failed to drop duplicate submission id %s: %w", submissionId, err)
+		}
+	}
+
 	for entryIndex, submission := range newSubmissions {
 		// If any of the entries for the request has a duplicate, drop them all
 		if hasDuplicate {
 			submission.SubmissionState = db.DroppedSubmissionState
-			err = dropTrainingSubmission(submission)
-			if err != nil {
-				return err
-			}
 		}
 
 		// fill the cross-references
@@ -125,7 +129,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 
 		err := trainTable.Put(submission, makeId(submissionId, entryIndex))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to store training submission for entry %d: %w", entryIndex, err)
 		}
 
 		// Check membership number
@@ -142,7 +146,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			// update
 			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to update submission after membership record not found for entry %d: %w", entryIndex, err)
 			}
 			continue
 		}
@@ -249,13 +253,8 @@ func membershipDateCheck(member *db.MemberRecord, target *time.Time) bool {
 		(target.Equal(*end) || target.Before(*end))
 }
 
-// dropTrainingSubmission drops a training submission from Jotform. It does no update the database.
-func dropTrainingSubmission(submission *db.TrainingSubmission) error {
-	sid, _, err := parseId(submission.GetID())
-	if err != nil {
-		return err
-	}
-
+// dropJotformTrainingSubmission drops a training submission from Jotform. It does no update the database.
+func dropJotformTrainingSubmission(sid string) error {
 	sidInt, err := strconv.ParseInt(sid, 10, 64)
 	if err != nil {
 		return err
