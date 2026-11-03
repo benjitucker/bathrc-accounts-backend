@@ -22,3 +22,11 @@ The Lambda's function URL serves two paths:
 - anything else: the Jotform webhook, as before.
 
 A submission can arrive through the webhook, the redirect and the hourly catch-up. Whichever arrives first claims it with a conditional DynamoDB write and processes it; the others skip it, so records aren't overwritten and emails aren't sent twice.
+
+## Training prices (Stripe mode)
+
+In Stripe mode, each booking's prices are read from the Training form's definition when the booking is made, so prices stay editable in Jotform. Each venue needs two fields whose **unique names** are the venue's value in the form followed by `mem` and `nonmem`, compared ignoring case. For example, a venue with the value `RiverMead` needs `rivermeadmem` and `rivermeadnonmem`. Adding a venue needs no code change.
+
+The original venues keep their existing field names: `WestWilts` uses `wwecmem`/`wwecnonmem`, `Widbrook` uses `widmem`/`widnonmem`, and `StockleyFarm` uses `slfmem`/`slfnonmem`.
+
+The member is charged the member price if their membership is valid on the session date, and the non-member price otherwise. If a venue's prices can't be read, the booking is held and a "PRICES NOT FOUND" email, including the price fields' definitions, is sent to the test address.
