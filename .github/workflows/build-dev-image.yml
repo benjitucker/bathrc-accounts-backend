@@ -1,0 +1,52 @@
+# Builds the development image for the bathrc-accounts-backend-dev Lambda.
+#
+# This is deliberately separate from build-publish-image.yml, which runs on every tag
+# and deploys production. This workflow:
+#   - runs only on pushes to the `dev` branch (or when started manually from the dev branch)
+#   - publishes only ghcr.io/benjitucker/bathrc-accounts-backend:dev (never `latest` or a version tag)
+#   - does NOT trigger a deploy; the dev Lambda is updated by a Terraform run started by hand
+name: Build dev image
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-dev-image:
+    # Guard against a manual run from any other branch publishing a :dev image from it
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@7137ecbd587e9331e068c80ad54b57e873403052
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same build settings as the production workflow (single-platform manifest, no
+      # provenance or SBOM attestations), so the image copies into ECR the same way.
+      - name: Build and push dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          provenance: false
+          sbom: false
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
