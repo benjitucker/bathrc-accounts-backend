@@ -11,6 +11,30 @@ import (
 	"strings"
 )
 
+// formTitleSuffix is the suffix that incoming form titles must carry. It is empty in
+// production, so the forms are matched by their original titles ("Training",
+// "Training Administration"). A non-production deployment sets it (e.g. " DEV") so that
+// it only accepts its own copies of the forms, such as "Training DEV".
+var formTitleSuffix string
+
+// SetFormTitleSuffix sets the suffix that incoming form titles must carry. An empty
+// suffix gives the production behaviour.
+func SetFormTitleSuffix(suffix string) {
+	formTitleSuffix = suffix
+}
+
+// formKindFromTitle maps an incoming form title onto the form kind ("Training" or
+// "Training Administration"), removing the configured suffix.
+func formKindFromTitle(title string) (string, error) {
+	if formTitleSuffix == "" {
+		return title, nil
+	}
+	if !strings.HasSuffix(title, formTitleSuffix) {
+		return "", fmt.Errorf("unsupported formTitle: %s (expected suffix %q)", title, formTitleSuffix)
+	}
+	return strings.TrimSuffix(title, formTitleSuffix), nil
+}
+
 // DecodeBase64Multipart decodes a base64-encoded multipart payload from Jotform and unmarshals it into a FormData struct.
 func DecodeBase64Multipart(base64Payload string) (*FormData, error) {
 	raw, err := base64.StdEncoding.DecodeString(base64Payload)
@@ -62,7 +86,12 @@ func DecodeBase64Multipart(base64Payload string) (*FormData, error) {
 		}
 	}
 
-	switch form.FormTitle {
+	formKind, err := formKindFromTitle(form.FormTitle)
+	if err != nil {
+		return nil, err
+	}
+
+	switch formKind {
 	case "Training":
 		var rr TrainingRawRequest
 		if err := json.Unmarshal([]byte(form.RawRequestStr), &rr); err != nil {
