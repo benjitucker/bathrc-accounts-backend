@@ -126,6 +126,13 @@ func processTrainingRequest(submissionId string, request jotform_webhook.Trainin
 		}
 	}
 
+	// In Stripe mode, record each venue's prices from the form definition. This has no side
+	// effects, so it is done before the claim; any problem is reported after it.
+	var priceProblem string
+	if paymentMode == paymentModeStripe {
+		priceProblem = recordPrices(newSubmissions)
+	}
+
 	// Claim the submission before doing anything with side effects (deleting duplicates,
 	// sending emails). If the claim fails, another invocation has already processed it.
 	claimed, err := trainTable.PutIfAbsent(newSubmissions[0], makeId(submissionId, 0))
@@ -135,6 +142,11 @@ func processTrainingRequest(submissionId string, request jotform_webhook.Trainin
 	if !claimed {
 		fmt.Printf("submission %s has already been processed, skipping\n", submissionId)
 		return true, nil
+	}
+
+	if priceProblem != "" {
+		emailHandler.SendEmail(testEmail, "Training: PRICES NOT FOUND",
+			fmt.Sprintf("Submission %s is held because its prices could not be read.\n\n%s", submissionId, priceProblem))
 	}
 
 	memberRecords := make([]*db.MemberRecord, 2)
@@ -270,6 +282,32 @@ func processTrainingRequest(submissionId string, request jotform_webhook.Trainin
 	}
 
 	return false, nil
+}
+
+// recordPrices stores each booking's venue prices on it. It returns a description of the
+// problem if any venue's prices could not be read, or "" if all were found.
+func recordPrices(bookings []*db.TrainingSubmission) string {
+	fields, err := loadPriceFields()
+	if err != nil {
+		return fmt.Sprintf("Could not read the form's price fields: %v", err)
+	}
+
+	var missing []string
+	for _, booking := range bookings {
+		prices, ok := fields.pricesForVenue(booking.Venue)
+		booking.PricesFound = ok
+		if !ok {
+			missing = append(missing, booking.Venue)
+			continue
+		}
+		booking.MemberPricePence = prices.MemberPence
+		booking.NonMemberPricePence = prices.NonMemberPence
+	}
+	if len(missing) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("No price fields found for venue(s) %s. Each venue needs fields with the unique names <venue>mem and <venue>nonmem.\n\n%s",
+		strings.Join(missing, ", "), fields.diagnostic())
 }
 
 // membershipDateCheck verifies if a member's membership is valid on a specific target date.

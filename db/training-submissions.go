@@ -37,6 +37,11 @@ type TrainingSubmission struct {
 	// Processed is set once all the checks for the submission set have completed and
 	// their outcome has been stored. Records written before this field existed read as false.
 	Processed bool `dynamodbav:"processed"`
+	// The venue's prices when the booking was made, read from the form definition.
+	// Only recorded in Stripe payment mode; PricesFound is false if they could not be read.
+	MemberPricePence    int64 `dynamodbav:"memberPricePence"`
+	NonMemberPricePence int64 `dynamodbav:"nonMemberPricePence"`
+	PricesFound         bool  `dynamodbav:"pricesFound"`
 }
 
 // State Machine

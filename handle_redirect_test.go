@@ -51,6 +51,7 @@ func booking(mutate func(b *db.TrainingSubmission)) *db.TrainingSubmission {
 		SubmissionState:   db.ReceivedSubmissionState,
 		FoundMemberRecord: true,
 		Processed:         true,
+		PricesFound:       true,
 	}
 	if mutate != nil {
 		mutate(b)
@@ -98,6 +99,19 @@ func TestDecideOutcome(t *testing.T) {
 				booking(nil),
 				booking(func(b *db.TrainingSubmission) { b.FoundMemberRecord = false }),
 			},
+			want: outcomeCheckingMembership,
+		},
+		{
+			name:     "prices missing",
+			bookings: []*db.TrainingSubmission{booking(func(b *db.TrainingSubmission) { b.PricesFound = false })},
+			want:     outcomeError,
+		},
+		{
+			name: "membership hold takes priority over missing prices",
+			bookings: []*db.TrainingSubmission{booking(func(b *db.TrainingSubmission) {
+				b.PricesFound = false
+				b.LapsedMembership = true
+			})},
 			want: outcomeCheckingMembership,
 		},
 		{

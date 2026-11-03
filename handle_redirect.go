@@ -218,6 +218,13 @@ func decideOutcome(bookings []*db.TrainingSubmission) redirectOutcome {
 			return outcomeCheckingMembership
 		}
 	}
+	for _, booking := range bookings {
+		// Never ask for a payment without a price read from the form. The club has been
+		// emailed; the member sees the general "we'll email you" page.
+		if !booking.PricesFound {
+			return outcomeError
+		}
+	}
 	return outcomeReadyToPay
 }
 
