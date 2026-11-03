@@ -71,7 +71,7 @@ func (t *TransactionTable) Open(ctx context.Context, ddb *dynamodb.Client) error
 	t.t = new(dbTable)
 	t.t.ctx = ctx
 	t.t.ddb = ddb
-	t.t.tableName = "Transactions"
+	t.t.tableName = tableName("Transactions")
 	return nil
 }
 
