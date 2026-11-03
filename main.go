@@ -90,8 +90,13 @@ func handleEventBridge(payload EventBridgePayload) (any, error) {
 	}, nil
 }
 
-// handleAPIRequest handles incoming webhook requests from Jotform via API Gateway.
+// handleAPIRequest handles incoming requests to the function URL. Requests to /redirect come
+// from a member's browser after submitting the Training form; everything else is a Jotform webhook.
 func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
+	if req.RawPath == redirectPath {
+		return handleRedirectRequest(req)
+	}
+
 	fmt.Printf("Handle API, body %s", req.Body)
 
 	formData, err := jotform_webhook.DecodeBase64Multipart(req.Body)
@@ -162,6 +167,23 @@ func main() {
 	if suffix := os.Getenv("FORM_TITLE_SUFFIX"); suffix != "" {
 		jotform_webhook.SetFormTitleSuffix(suffix)
 		fmt.Printf("Accepting only forms with title suffix %q\n", suffix)
+	}
+
+	// Both are unset in production: bank transfer payments, and the live Training form.
+	// An invalid value stops the Lambda starting rather than falling back to production's form.
+	var configErr error
+	paymentMode, configErr = parsePaymentMode(os.Getenv("PAYMENT_MODE"))
+	if configErr != nil {
+		fmt.Printf("ERROR: %v\n", configErr)
+		return
+	}
+	trainingFormID, configErr = parseTrainingFormID(os.Getenv("TRAINING_FORM_ID"))
+	if configErr != nil {
+		fmt.Printf("ERROR: %v\n", configErr)
+		return
+	}
+	if paymentMode != paymentModeBACS || trainingFormID != productionTrainingFormID {
+		fmt.Printf("Payment mode %q, training form %d\n", paymentMode, trainingFormID)
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx)
