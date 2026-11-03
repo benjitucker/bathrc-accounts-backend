@@ -24,8 +24,8 @@ import (
 // Jotform API. It is then processed (unless the webhook has already done so) and the member
 // is shown what happens next.
 //
-// The endpoint is only enabled when PAYMENT_MODE is "stripe". In this version the "ready to
-// pay" outcome shows a placeholder page; the Stripe payment step will replace it.
+// The endpoint is only enabled when PAYMENT_MODE is "stripe". A member whose booking is ready
+// to pay is sent straight to a Stripe payment page.
 
 const (
 	redirectPath = "/redirect"
@@ -70,7 +70,7 @@ func handleRedirectRequest(req events.LambdaFunctionURLRequest) (events.LambdaFu
 		return htmlResponse(http.StatusOK, outcomePage(outcomeError), clubEmail), nil
 	}
 
-	outcome, err := redirectOutcomeFor(submissionId)
+	outcome, bookings, err := redirectOutcomeFor(submissionId)
 	if err != nil {
 		fmt.Printf("ERROR: redirect for submission %s: %v\n", submissionId, err)
 		emailHandler.SendEmail(testEmail, "jotform redirect: FAIL",
@@ -79,6 +79,15 @@ func handleRedirectRequest(req events.LambdaFunctionURLRequest) (events.LambdaFu
 	}
 
 	fmt.Printf("Redirect for submission %s: %s\n", submissionId, outcome)
+
+	if outcome == outcomeReadyToPay && paymentStatusOf(bookings) == paymentDue {
+		checkoutURL, err := startCheckout(submissionId, bookings, baseURL(req))
+		if err != nil {
+			return paymentErrorResponse(submissionId, err), nil
+		}
+		return redirectResponse(checkoutURL), nil
+	}
+
 	return htmlResponse(http.StatusOK, outcomePage(outcome), clubEmail), nil
 }
 
@@ -109,38 +118,38 @@ func submissionIDFromRedirect(body string, isBase64Encoded bool) (string, error)
 }
 
 // redirectOutcomeFor processes the submission, if that hasn't happened already, and decides
-// what the member sees next.
-func redirectOutcomeFor(submissionId string) (redirectOutcome, error) {
+// what the member sees next. It also returns the submission's bookings.
+func redirectOutcomeFor(submissionId string) (redirectOutcome, []*db.TrainingSubmission, error) {
 	sid, err := strconv.ParseInt(submissionId, 10, 64)
 	if err != nil {
-		return outcomeError, err
+		return outcomeError, nil, err
 	}
 
 	data, err := jotformClient.GetSubmission(sid)
 	if err != nil {
-		return outcomeError, fmt.Errorf("failed to get submission from Jotform: %w", err)
+		return outcomeError, nil, fmt.Errorf("failed to get submission from Jotform: %w", err)
 	}
 
 	var submission jotform_webhook.TrainingRawRequestWithID
 	if err := json.Unmarshal(data, &submission); err != nil {
-		return outcomeError, fmt.Errorf("failed to parse submission from Jotform: %w", err)
+		return outcomeError, nil, fmt.Errorf("failed to parse submission from Jotform: %w", err)
 	}
 
 	if submission.FormID != strconv.FormatInt(trainingFormID, 10) {
-		return outcomeError, fmt.Errorf("submission belongs to form %q, not the training form %d",
+		return outcomeError, nil, fmt.Errorf("submission belongs to form %q, not the training form %d",
 			submission.FormID, trainingFormID)
 	}
 
 	if _, err := processTrainingRequest(submissionId, &submission); err != nil {
-		return outcomeError, err
+		return outcomeError, nil, err
 	}
 
 	bookings, err := waitForProcessedBookings(submissionId)
 	if err != nil {
-		return outcomeError, err
+		return outcomeError, nil, err
 	}
 
-	return decideOutcome(bookings), nil
+	return decideOutcome(bookings), bookings, nil
 }
 
 // waitForProcessedBookings reads the booking records for a submission, waiting for another
@@ -233,11 +242,53 @@ type page struct {
 	Paragraphs []string
 	// ContactClub adds a line with the club's email address, when it is known
 	ContactClub bool
+	// An optional button
+	LinkText, LinkURL string
 }
 
 var pageNotFound = page{
 	Title:      "Page not found",
 	Paragraphs: []string{"This page isn’t available."},
+}
+
+var pagePaymentComplete = page{
+	Title: "Thank you for your payment",
+	Paragraphs: []string{
+		"Your payment has been received. We’ll confirm your training booking by email shortly.",
+	},
+}
+
+var pageAlreadyPaid = page{
+	Title:      "Already paid",
+	Paragraphs: []string{"This training booking has already been paid for. Thank you!"},
+}
+
+var pagePaymentNotPossible = page{
+	Title: "This booking can’t be paid online",
+	Paragraphs: []string{
+		"This training booking is no longer open for payment, for example because the session has passed.",
+		"Please contact the club if you think this is a mistake.",
+	},
+	ContactClub: true,
+}
+
+var pageInvalidPayLink = page{
+	Title: "This payment link isn’t valid",
+	Paragraphs: []string{
+		"Please check that you’ve used the whole link from your email, or contact the club.",
+	},
+	ContactClub: true,
+}
+
+func paymentCancelledPage(payLink string) page {
+	return page{
+		Title: "Payment not completed",
+		Paragraphs: []string{
+			"Your training request has been received, but your place isn’t confirmed until it’s paid for.",
+		},
+		LinkText: "Pay now",
+		LinkURL:  payLink,
+	}
 }
 
 func outcomePage(outcome redirectOutcome) page {
@@ -296,12 +347,15 @@ var pageTemplate = template.Must(template.New("page").Parse(`<!DOCTYPE html>
   p { margin: 0 0 0.85rem; }
   .club { margin-top: 1.5rem; font-size: 0.9rem; color: #52606d; }
   a { color: #1d4ed8; }
+  a.button { display: inline-block; margin: 0.5rem 0 1rem; padding: 0.7rem 1.4rem; border-radius: 8px;
+             background: #1d4ed8; color: #fff; text-decoration: none; font-weight: 600; }
 </style>
 </head>
 <body>
 <main>
 <h1>{{.Page.Title}}</h1>
 {{range .Page.Paragraphs}}<p>{{.}}</p>
+{{end}}{{if .Page.LinkURL}}<p><a class="button" href="{{.Page.LinkURL}}">{{.Page.LinkText}}</a></p>
 {{end}}{{if and .Page.ContactClub .ClubEmail}}<p>You can contact the club at <a href="mailto:{{.ClubEmail}}">{{.ClubEmail}}</a>.</p>
 {{end}}<p class="club">Bath Riding Club</p>
 </main>
