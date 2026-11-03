@@ -52,7 +52,7 @@ func (t *TrainingSubmissionTable) Open(ctx context.Context, ddb *dynamodb.Client
 	t.t = new(dbTable)
 	t.t.ctx = ctx
 	t.t.ddb = ddb
-	t.t.tableName = "TrainingSubmissions"
+	t.t.tableName = tableName("TrainingSubmissions")
 	return nil
 }
 
