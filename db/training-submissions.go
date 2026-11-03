@@ -34,6 +34,9 @@ type TrainingSubmission struct {
 	ReceivedRequestEmailSent  bool      `dynamodbav:"receivedRequestEmailSent"`
 	PayReminderEmailSent      bool      `dynamodbav:"payReminderEmailSent"`
 	PaymentDiscrepancy        bool      `dynamodbav:"paymentDiscrepancy"`
+	// Processed is set once all the checks for the submission set have completed and
+	// their outcome has been stored. Records written before this field existed read as false.
+	Processed bool `dynamodbav:"processed"`
 }
 
 // State Machine
@@ -59,6 +62,13 @@ func (t *TrainingSubmissionTable) Open(ctx context.Context, ddb *dynamodb.Client
 func (t *TrainingSubmissionTable) Put(record *TrainingSubmission, id string) error {
 	record.SetID(id)
 	return putItem[*TrainingSubmission](t.t, record)
+}
+
+// PutIfAbsent stores the record under the given id only if no record with that id exists.
+// It returns false, with no error, if one already exists.
+func (t *TrainingSubmissionTable) PutIfAbsent(record *TrainingSubmission, id string) (bool, error) {
+	record.SetID(id)
+	return putItemIfAbsent[*TrainingSubmission](t.t, record)
 }
 
 // PutAll relies on the ID of all the records to be in place

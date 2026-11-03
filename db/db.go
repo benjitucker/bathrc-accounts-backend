@@ -70,6 +70,32 @@ func putItem[T dbItemIf](t *dbTable, record T) error {
 	return nil
 }
 
+// putItemIfAbsent stores the record only if no item with the same ID exists yet.
+// It returns false, with no error, when an item with that ID already exists.
+func putItemIfAbsent[T dbItemIf](t *dbTable, record T) (bool, error) {
+
+	item, err := attributevalue.MarshalMap(record)
+	if err != nil {
+		return false, err
+	}
+
+	item["ID"] = &types.AttributeValueMemberS{Value: record.GetID()}
+
+	_, err = t.ddb.PutItem(t.ctx, &dynamodb.PutItemInput{
+		TableName:           aws.String(t.tableName),
+		Item:                item,
+		ConditionExpression: aws.String("attribute_not_exists(ID)"),
+	})
+	if err != nil {
+		var conditionFailed *types.ConditionalCheckFailedException
+		if errors.As(err, &conditionFailed) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to PutItem if absent: table %s; ID %s: %w", t.tableName, record.GetID(), err)
+	}
+	return true, nil
+}
+
 // getItem retrieves an item by id and unmarshals it into the generic type T.
 // T must be a struct or pointer to a struct compatible with attributevalue.UnmarshalMap.
 func getItem[T dbItemIf](t *dbTable, id string) (T, error) {
