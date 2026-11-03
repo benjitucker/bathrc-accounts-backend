@@ -1,0 +1,328 @@
+package main
+
+import (
+	"benjitucker/bathrc-accounts/db"
+	"benjitucker/bathrc-accounts/jotform-webhook"
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"html/template"
+	"net/http"
+	"net/url"
+	"strconv"
+	"time"
+
+	"github.com/aws/aws-lambda-go/events"
+)
+
+// The post-submission redirect.
+//
+// The Training form's Thank You page redirects the member's browser here, with the
+// submission sent as an HTTP POST. Only the submission ID is taken from that POST: the
+// browser could have altered anything else, so the submission itself is fetched from the
+// Jotform API. It is then processed (unless the webhook has already done so) and the member
+// is shown what happens next.
+//
+// The endpoint is only enabled when PAYMENT_MODE is "stripe". In this version the "ready to
+// pay" outcome shows a placeholder page; the Stripe payment step will replace it.
+
+const (
+	redirectPath = "/redirect"
+
+	// How long to wait for another invocation (normally the webhook) to finish processing
+	// the same submission.
+	processedWaitTimeout = 10 * time.Second
+	processedPollPeriod  = 250 * time.Millisecond
+)
+
+type redirectOutcome int
+
+const (
+	outcomeReadyToPay redirectOutcome = iota
+	outcomeCheckingMembership
+	outcomeAlreadyBooked
+	outcomeError
+)
+
+func (o redirectOutcome) String() string {
+	switch o {
+	case outcomeReadyToPay:
+		return "ready to pay"
+	case outcomeCheckingMembership:
+		return "checking membership"
+	case outcomeAlreadyBooked:
+		return "already booked"
+	default:
+		return "error"
+	}
+}
+
+// handleRedirectRequest handles a member's browser arriving after submitting the Training form.
+func handleRedirectRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
+	if paymentMode != paymentModeStripe {
+		return htmlResponse(http.StatusNotFound, pageNotFound, clubEmail), nil
+	}
+
+	submissionId, err := submissionIDFromRedirect(req.Body, req.IsBase64Encoded)
+	if err != nil {
+		fmt.Printf("ERROR: redirect: %v\n", err)
+		return htmlResponse(http.StatusOK, outcomePage(outcomeError), clubEmail), nil
+	}
+
+	outcome, err := redirectOutcomeFor(submissionId)
+	if err != nil {
+		fmt.Printf("ERROR: redirect for submission %s: %v\n", submissionId, err)
+		emailHandler.SendEmail(testEmail, "jotform redirect: FAIL",
+			fmt.Sprintf("submission %s: %v", submissionId, err))
+		outcome = outcomeError
+	}
+
+	fmt.Printf("Redirect for submission %s: %s\n", submissionId, outcome)
+	return htmlResponse(http.StatusOK, outcomePage(outcome), clubEmail), nil
+}
+
+// submissionIDFromRedirect extracts the Jotform submission ID from the form-encoded POST
+// body that Jotform's "Redirect with HTTP POST" sends.
+func submissionIDFromRedirect(body string, isBase64Encoded bool) (string, error) {
+	if isBase64Encoded {
+		decoded, err := base64.StdEncoding.DecodeString(body)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode body: %w", err)
+		}
+		body = string(decoded)
+	}
+
+	values, err := url.ParseQuery(body)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse body: %w", err)
+	}
+
+	submissionId := values.Get("submission_id")
+	if submissionId == "" {
+		return "", fmt.Errorf("no submission_id in redirect")
+	}
+	if _, err := strconv.ParseInt(submissionId, 10, 64); err != nil {
+		return "", fmt.Errorf("invalid submission_id %q", submissionId)
+	}
+	return submissionId, nil
+}
+
+// redirectOutcomeFor processes the submission, if that hasn't happened already, and decides
+// what the member sees next.
+func redirectOutcomeFor(submissionId string) (redirectOutcome, error) {
+	sid, err := strconv.ParseInt(submissionId, 10, 64)
+	if err != nil {
+		return outcomeError, err
+	}
+
+	data, err := jotformClient.GetSubmission(sid)
+	if err != nil {
+		return outcomeError, fmt.Errorf("failed to get submission from Jotform: %w", err)
+	}
+
+	var submission jotform_webhook.TrainingRawRequestWithID
+	if err := json.Unmarshal(data, &submission); err != nil {
+		return outcomeError, fmt.Errorf("failed to parse submission from Jotform: %w", err)
+	}
+
+	if submission.FormID != strconv.FormatInt(trainingFormID, 10) {
+		return outcomeError, fmt.Errorf("submission belongs to form %q, not the training form %d",
+			submission.FormID, trainingFormID)
+	}
+
+	if _, err := processTrainingRequest(submissionId, &submission); err != nil {
+		return outcomeError, err
+	}
+
+	bookings, err := waitForProcessedBookings(submissionId)
+	if err != nil {
+		return outcomeError, err
+	}
+
+	return decideOutcome(bookings), nil
+}
+
+// waitForProcessedBookings reads the booking records for a submission, waiting for another
+// invocation to finish processing them if necessary.
+func waitForProcessedBookings(submissionId string) ([]*db.TrainingSubmission, error) {
+	deadline := time.Now().Add(processedWaitTimeout)
+	for {
+		bookings, err := readBookings(submissionId)
+		if err != nil {
+			return nil, err
+		}
+		if allProcessed(bookings) {
+			return bookings, nil
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("timed out waiting for submission %s to be processed", submissionId)
+		}
+		time.Sleep(processedPollPeriod)
+	}
+}
+
+// readBookings returns the booking records for a submission, or none if it has not been
+// stored yet.
+func readBookings(submissionId string) ([]*db.TrainingSubmission, error) {
+	first, err := trainTable.Get(makeId(submissionId, 0))
+	if err != nil {
+		return nil, err
+	}
+	if first == nil {
+		return nil, nil
+	}
+
+	var bookings []*db.TrainingSubmission
+	for _, id := range first.LinkedSubmissionIds {
+		booking, err := trainTable.Get(id)
+		if err != nil {
+			return nil, err
+		}
+		if booking == nil {
+			// Not stored yet
+			return nil, nil
+		}
+		bookings = append(bookings, booking)
+	}
+	return bookings, nil
+}
+
+func allProcessed(bookings []*db.TrainingSubmission) bool {
+	if len(bookings) == 0 {
+		return false
+	}
+	for _, booking := range bookings {
+		if !booking.Processed {
+			return false
+		}
+	}
+	return true
+}
+
+// decideOutcome applies the booking rules to a processed submission set. All sessions in a
+// submission are treated together.
+func decideOutcome(bookings []*db.TrainingSubmission) redirectOutcome {
+	if len(bookings) == 0 {
+		return outcomeError
+	}
+	for _, booking := range bookings {
+		if booking.SubmissionState == db.DroppedSubmissionState || booking.DuplicateOfId != "" {
+			return outcomeAlreadyBooked
+		}
+	}
+	for _, booking := range bookings {
+		// Payment is held until the membership data has been refreshed: the member could
+		// not be found, or claimed the member price but their membership has lapsed.
+		if !booking.FoundMemberRecord || booking.LapsedMembership {
+			return outcomeCheckingMembership
+		}
+	}
+	return outcomeReadyToPay
+}
+
+type page struct {
+	Title      string
+	Paragraphs []string
+	// ContactClub adds a line with the club's email address, when it is known
+	ContactClub bool
+}
+
+var pageNotFound = page{
+	Title:      "Page not found",
+	Paragraphs: []string{"This page isn’t available."},
+}
+
+func outcomePage(outcome redirectOutcome) page {
+	switch outcome {
+	case outcomeReadyToPay:
+		return page{
+			Title: "Training request received",
+			Paragraphs: []string{
+				"Thank you, we’ve received your training request.",
+				"Online payment isn’t available yet. You’ll receive an email with details of how to pay.",
+			},
+		}
+	case outcomeCheckingMembership:
+		return page{
+			Title: "We’re checking your membership",
+			Paragraphs: []string{
+				"Thank you, we’ve received your training request.",
+				"We’re checking your membership status and will email you when we’ve done that.",
+				"If you haven’t heard from us within a few days, please contact the club.",
+			},
+			ContactClub: true,
+		}
+	case outcomeAlreadyBooked:
+		return page{
+			Title: "You’ve already requested this session",
+			Paragraphs: []string{
+				"It looks like you’ve already sent a request for this training session, so we haven’t booked it again.",
+				"Please check your email for the details of your earlier request. If you think this is a mistake, please contact the club.",
+			},
+			ContactClub: true,
+		}
+	default:
+		return page{
+			Title: "Training request received",
+			Paragraphs: []string{
+				"Thank you, we’ve received your training request. We’ll email you shortly with the next steps.",
+				"If you haven’t heard from us within a day, please contact the club.",
+			},
+			ContactClub: true,
+		}
+	}
+}
+
+var pageTemplate = template.Must(template.New("page").Parse(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Page.Title}} – Bath Riding Club</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         margin: 0; padding: 2rem 1.25rem; background: #f6f6f4; color: #1f2933; line-height: 1.5; }
+  main { max-width: 34rem; margin: 0 auto; background: #fff; border-radius: 12px; padding: 1.75rem 1.5rem;
+         box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 1.4rem; margin: 0 0 1rem; }
+  p { margin: 0 0 0.85rem; }
+  .club { margin-top: 1.5rem; font-size: 0.9rem; color: #52606d; }
+  a { color: #1d4ed8; }
+</style>
+</head>
+<body>
+<main>
+<h1>{{.Page.Title}}</h1>
+{{range .Page.Paragraphs}}<p>{{.}}</p>
+{{end}}{{if and .Page.ContactClub .ClubEmail}}<p>You can contact the club at <a href="mailto:{{.ClubEmail}}">{{.ClubEmail}}</a>.</p>
+{{end}}<p class="club">Bath Riding Club</p>
+</main>
+</body>
+</html>
+`))
+
+// htmlResponse renders a page as a function URL response.
+func htmlResponse(statusCode int, p page, clubEmailAddress string) events.LambdaFunctionURLResponse {
+	var buf bytes.Buffer
+	err := pageTemplate.Execute(&buf, struct {
+		Page      page
+		ClubEmail string
+	}{p, clubEmailAddress})
+	if err != nil {
+		fmt.Printf("ERROR: rendering page: %v\n", err)
+		return events.LambdaFunctionURLResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       http.StatusText(http.StatusInternalServerError),
+		}
+	}
+
+	return events.LambdaFunctionURLResponse{
+		StatusCode: statusCode,
+		Headers: map[string]string{
+			"Content-Type":  "text/html; charset=utf-8",
+			"Cache-Control": "no-store",
+		},
+		Body: buf.String(),
+	}
+}

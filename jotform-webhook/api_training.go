@@ -22,6 +22,7 @@ type apiAnswerField struct {
 
 type TrainingRawRequestWithID struct {
 	SubmissionID string `json:"id"`
+	FormID       string `json:"form_id"`
 	TrainingRawRequest
 }
 
@@ -32,6 +33,7 @@ func (r *TrainingRawRequestWithID) UnmarshalJSON(b []byte) error {
 	}
 
 	r.SubmissionID = sub.ID
+	r.FormID = sub.FormID
 
 	created, _ := time.Parse("2006-01-02 15:04:05", sub.CreatedAt)
 	r.SubmitDate = UnixMillis(created)
