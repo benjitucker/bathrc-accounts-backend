@@ -152,6 +152,18 @@ func main() {
 		fmt.Printf("TEST MODE ENABLED!\n")
 	}
 
+	// Non-production deployments use their own DynamoDB tables and their own copies of
+	// the Jotform forms. Both settings are unset in production, which keeps the original
+	// table names and form titles.
+	if prefix := os.Getenv("TABLE_NAME_PREFIX"); prefix != "" {
+		db.SetTableNamePrefix(prefix)
+		fmt.Printf("Using DynamoDB table name prefix %q\n", prefix)
+	}
+	if suffix := os.Getenv("FORM_TITLE_SUFFIX"); suffix != "" {
+		jotform_webhook.SetFormTitleSuffix(suffix)
+		fmt.Printf("Accepting only forms with title suffix %q\n", suffix)
+	}
+
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
