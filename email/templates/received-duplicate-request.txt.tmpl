@@ -2,12 +2,14 @@ Dear {{.FirstName}},
 
   Your request for a training session at {{.Venue}} on {{.TrainingDate}} has already been received.
 
-  Please make BACS payment by {{.PayDate}} to secure your space:
+{{if .PayLink}}  Please pay £{{.Amount}} by {{.PayDate}} to secure your space:
+
+  {{.PayLink}}{{else}}  Please make BACS payment by {{.PayDate}} to secure your space:
 
   Account Name:      BathRC
   Account Number:    {{.AccountNumber}}
   Sort Code:         {{.SortCode}}
   Payment Reference: {{.Reference}}
-  Amount:            £{{.Amount}}
+  Amount:            £{{.Amount}}{{end}}
 
 Bath Riding Club
