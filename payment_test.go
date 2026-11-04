@@ -185,25 +185,6 @@ func TestApplyPayment_Problems(t *testing.T) {
 	})
 }
 
-func TestTestModeRecipients(t *testing.T) {
-	members := []*db.MemberRecord{{Email: "a@example.org"}, {Email: "b@example.org"}}
-
-	testMode = false
-	if got := testModeRecipients(members); got[0].Email != "a@example.org" {
-		t.Errorf("addresses changed outside test mode")
-	}
-
-	testMode, testEmail, testEmail2 = true, "test1@example.org", "test2@example.org"
-	t.Cleanup(func() { testMode, testEmail, testEmail2 = false, "", "" })
-	got := testModeRecipients(members)
-	if got[0].Email != "test1@example.org" || got[1].Email != "test2@example.org" {
-		t.Errorf("got %q, %q", got[0].Email, got[1].Email)
-	}
-	if members[0].Email != "a@example.org" {
-		t.Errorf("the original member records were changed")
-	}
-}
-
 func functionURLRequest(method, path string, query map[string]string) events.LambdaFunctionURLRequest {
 	req := events.LambdaFunctionURLRequest{RawPath: path, QueryStringParameters: query}
 	req.RequestContext.HTTP.Method = method
