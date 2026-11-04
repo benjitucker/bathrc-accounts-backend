@@ -198,7 +198,7 @@ func recordStripePayment(session *stripe.CheckoutSession) error {
 		}
 	}
 	if paid {
-		emailHandler.SendReceivedPayment(testModeRecipients(members), bookings, nil)
+		emailHandler.SendReceivedPayment(members, bookings, nil)
 	}
 	return nil
 }

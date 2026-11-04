@@ -153,6 +153,7 @@ func startCheckout(submissionId string, bookings []*db.TrainingSubmission, baseU
 	if member, err := memberTable.Get(bookings[0].MembershipNumber); err == nil && member != nil {
 		customerEmail = member.Email
 		if testMode {
+			// keep real members' addresses out of Stripe test data
 			customerEmail = testEmail
 		}
 	}
@@ -238,27 +239,6 @@ func applyPayment(bookings []*db.TrainingSubmission, paymentId string, amountPai
 	return result
 }
 
-// testModeRecipients replaces members' email addresses with the test addresses in test mode.
-func testModeRecipients(members []*db.MemberRecord) []*db.MemberRecord {
-	if !testMode {
-		return members
-	}
-	result := make([]*db.MemberRecord, len(members))
-	for i, member := range members {
-		if member == nil {
-			continue
-		}
-		copied := *member
-		if i == 0 {
-			copied.Email = testEmail
-		} else {
-			copied.Email = testEmail2
-		}
-		result[i] = &copied
-	}
-	return result
-}
-
 // payLinkDetailsFor is the payment link and amount for a submission's bookings.
 func payLinkDetailsFor(bookings []*db.TrainingSubmission) (email.PayLinkDetails, error) {
 	if len(bookings) == 0 {
@@ -282,10 +262,9 @@ func payLinkDetailsFor(bookings []*db.TrainingSubmission) (email.PayLinkDetails,
 }
 
 // The booking emails. In Stripe mode they carry a payment link; otherwise the bank transfer
-// details, as before. In test mode they only go to the test addresses.
+// details, as before. (In test mode the email layer sends every email only to the test address.)
 
 func emailReceivedRequest(members []*db.MemberRecord, bookings []*db.TrainingSubmission, extraText string) {
-	members = testModeRecipients(members)
 	if paymentMode != paymentModeStripe {
 		emailHandler.SendReceivedRequest(members, bookings, extraText)
 		return
@@ -299,7 +278,6 @@ func emailReceivedRequest(members []*db.MemberRecord, bookings []*db.TrainingSub
 }
 
 func emailPayReminder(members []*db.MemberRecord, bookings []*db.TrainingSubmission) {
-	members = testModeRecipients(members)
 	if paymentMode != paymentModeStripe {
 		emailHandler.SendPayReminder(members, bookings)
 		return
@@ -315,7 +293,6 @@ func emailPayReminder(members []*db.MemberRecord, bookings []*db.TrainingSubmiss
 // emailDuplicateRequest tells the member their request repeats an earlier one. In Stripe
 // mode the payment link is for the earlier booking.
 func emailDuplicateRequest(members []*db.MemberRecord, bookings, earlierBookings []*db.TrainingSubmission) {
-	members = testModeRecipients(members)
 	if paymentMode != paymentModeStripe {
 		emailHandler.SendReceivedDuplicateRequest(members, bookings, earlierBookings)
 		return

@@ -70,17 +70,6 @@ func TestRefreshedPriceText(t *testing.T) {
 	}
 }
 
-func TestTestModeRecipients_SkipsMissingMembers(t *testing.T) {
-	testMode, testEmail, testEmail2 = true, "test1@example.org", "test2@example.org"
-	t.Cleanup(func() { testMode, testEmail, testEmail2 = false, "", "" })
-
-	// the booking code passes a two-slot list even for a single booking
-	got := testModeRecipients([]*db.MemberRecord{{Email: "a@example.org"}, nil})
-	if got[0].Email != "test1@example.org" || got[1] != nil {
-		t.Errorf("got %+v", got)
-	}
-}
-
 func TestRememberBaseURL(t *testing.T) {
 	t.Cleanup(func() { publicBaseURL = "" })
 

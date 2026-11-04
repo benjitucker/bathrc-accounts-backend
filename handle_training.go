@@ -190,15 +190,6 @@ func processTrainingRequest(submissionId string, request jotform_webhook.Trainin
 			continue
 		}
 
-		// Use test email addresses if in test mode
-		if testMode {
-			if entryIndex == 0 {
-				memberRecord.Email = testEmail
-			} else {
-				memberRecord.Email = testEmail2
-			}
-		}
-
 		memberRecords[entryIndex] = memberRecord
 
 		// check that the membership is current, send me a message if not. Inconsistency with the form data
