@@ -15,6 +15,7 @@ The Lambda reads these environment variables. Leave all but `TEST_MODE` unset in
 | `STRIPE_SECRET_KEY_PARAM` | Stripe mode only: name of the SSM parameter holding the Stripe restricted key (needs Checkout Sessions: Write). |
 | `STRIPE_WEBHOOK_SECRET_PARAM` | Stripe mode only: name of the SSM parameter holding the Stripe webhook endpoint's signing secret (`whsec_...`). |
 | `PAY_LINK_SECRET_PARAM` | Stripe mode only: name of the SSM parameter holding the secret that signs payment links. |
+| `PUBLIC_BASE_URL_PARAM` | Stripe mode only: name of the SSM parameter holding this Lambda's function URL, for the payment links in emails. If unset, the address is taken from the first request received, so emails sent by the hourly job straight after a cold start may have no link. |
 | `TRAINING_FORM_ID` | The Jotform Training form's ID. The hourly catch-up fetches its recent submissions, and `/redirect` only accepts submissions from it. Unset: the live Training form. An invalid value stops the Lambda starting rather than falling back to the live form. |
 
 ## Endpoints
@@ -28,6 +29,12 @@ The Lambda's function URL serves these paths. All but the last exist only when `
 - anything else: the Jotform webhook, as before.
 
 A submission can arrive through the webhook, the redirect and the hourly catch-up. Whichever arrives first claims it with a conditional DynamoDB write and processes it; the others skip it, so records aren't overwritten and emails aren't sent twice.
+
+## Emails (Stripe mode)
+
+In Stripe mode, the emails that would show bank transfer details (request received, payment reminder and duplicate request) show the amount and a **Pay now** payment link instead. The bank transfer versions are unchanged. After a membership refresh, held bookings are checked again and the member is emailed a payment link at the right price: the member price if their membership is valid on the session date, otherwise the non-member price, with a sentence explaining any change from the price they asked for.
+
+In test mode, every booking email goes to the test addresses only.
 
 ## Training prices (Stripe mode)
 

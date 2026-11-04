@@ -258,9 +258,9 @@ func processTrainingRequest(submissionId string, request jotform_webhook.Trainin
 		}
 
 		if hasDuplicate && len(dupOfSubmissions) > 0 {
-			emailHandler.SendReceivedDuplicateRequest(memberRecords, newSubmissions, dupOfSubmissions)
+			emailDuplicateRequest(memberRecords, newSubmissions, dupOfSubmissions)
 		} else {
-			emailHandler.SendReceivedRequest(memberRecords, newSubmissions, "")
+			emailReceivedRequest(memberRecords, newSubmissions, "")
 		}
 	} else {
 		for _, submission := range newSubmissions {

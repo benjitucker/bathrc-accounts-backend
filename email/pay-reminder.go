@@ -7,14 +7,27 @@ import (
 
 type PayReminderData struct {
 	FirstName, Venue, TrainingDate, AccountNumber, SortCode, Reference, Amount string
+	// PayLink, when set, replaces the bank transfer details with a payment link
+	PayLink string
 }
 
 type PayReminder2Data struct {
 	FirstName, Venue, TrainingDate, Venue2, TrainingDate2, AccountNumber, SortCode, Reference, Amount string
+	// PayLink, when set, replaces the bank transfer details with a payment link
+	PayLink string
 }
 
 // SendPayReminder sends a payment reminder email for one or more training submissions to the respective members.
 func (eh *EmailHandler) SendPayReminder(members []*db.MemberRecord, submissions []*db.TrainingSubmission) {
+	eh.sendPayReminder(members, submissions, nil)
+}
+
+// SendPayReminderPayLink sends the payment reminder with an online payment link instead of bank details.
+func (eh *EmailHandler) SendPayReminderPayLink(members []*db.MemberRecord, submissions []*db.TrainingSubmission, pay PayLinkDetails) {
+	eh.sendPayReminder(members, submissions, &pay)
+}
+
+func (eh *EmailHandler) sendPayReminder(members []*db.MemberRecord, submissions []*db.TrainingSubmission, pay *PayLinkDetails) {
 	if len(members) == 0 {
 		fmt.Printf("Cannot send email, no valid membership numbers to send them too")
 		return
@@ -30,7 +43,8 @@ func (eh *EmailHandler) SendPayReminder(members []*db.MemberRecord, submissions 
 			AccountNumber: eh.params.AccountNumber,
 			SortCode:      eh.params.SortCode,
 			Reference:     submission.PaymentReference,
-			Amount:        formatAmount(submission.AmountPence),
+			Amount:        amountText(pay, submission),
+			PayLink:       payLinkURL(pay),
 		})
 	} else if len(submissions) == 2 {
 		// Assume entry 2 submission
@@ -55,7 +69,8 @@ func (eh *EmailHandler) SendPayReminder(members []*db.MemberRecord, submissions 
 			AccountNumber: eh.params.AccountNumber,
 			SortCode:      eh.params.SortCode,
 			Reference:     submissions[0].PaymentReference,
-			Amount:        formatAmount(submissions[0].AmountPence + submissions[1].AmountPence),
+			Amount:        amountText(pay, submissions[0], submissions[1]),
+			PayLink:       payLinkURL(pay),
 		})
 	} else {
 		// TODO - more that 2 entry submission

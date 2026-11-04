@@ -103,6 +103,17 @@ correct information.
 
 		// membership number should be valid at this point
 
+		// In Stripe mode the refresh releases held bookings with a payment link at the right price
+		if paymentMode == paymentModeStripe {
+			if submission.ActualCurrMem != submission.RequestCurrMem || newMember || submission.LapsedMembership {
+				err = releaseHeldBookings(linkedMemberRecords, linkedSubmissions, records)
+				if err != nil {
+					return err
+				}
+			}
+			continue
+		}
+
 		// note: this will be the case for brand-new members too
 		if submission.ActualCurrMem != submission.RequestCurrMem || newMember {
 
@@ -124,7 +135,7 @@ correct information.
 			sendEmailsAndUpdate := func(extraText string) error {
 				// but only if the linked set all have valid members
 				if len(linkedSubmissions) == len(linkedMemberRecords) {
-					emailHandler.SendReceivedRequest(linkedMemberRecords, linkedSubmissions, extraText)
+					emailReceivedRequest(linkedMemberRecords, linkedSubmissions, extraText)
 
 					// update linked submissions
 					for _, sub := range linkedSubmissions {

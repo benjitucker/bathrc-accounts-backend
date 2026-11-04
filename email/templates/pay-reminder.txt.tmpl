@@ -2,13 +2,15 @@ Dear {{.FirstName}},
 
   Just a reminder that payment for your training session at {{.Venue}} on {{.TrainingDate}} is due.
 
-  Please make BACS payment to secure your space:
+{{if .PayLink}}  Please pay £{{.Amount}} to secure your space:
+
+  {{.PayLink}}{{else}}  Please make BACS payment to secure your space:
 
   Account Name:      BathRC
   Account Number:    {{.AccountNumber}}
   Sort Code:         {{.SortCode}}
   Payment Reference: {{.Reference}}
-  Amount:            £{{.Amount}}
+  Amount:            £{{.Amount}}{{end}}
 
   If you’ve already completed the payment, please ignore this email.
 
