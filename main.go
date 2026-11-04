@@ -48,9 +48,9 @@ type EventBridgePayload struct {
 // handler is the entry point for Lambda functions, routing requests to either API Gateway or EventBridge handlers.
 func handler(raw json.RawMessage) (any, error) {
 
-	// Try API Gateway first
+	// Try a function URL request first. These always carry an HTTP method; scheduled events don't.
 	var apiReq events.LambdaFunctionURLRequest
-	if err := json.Unmarshal(raw, &apiReq); err == nil && apiReq.Body != "" {
+	if err := json.Unmarshal(raw, &apiReq); err == nil && apiReq.RequestContext.HTTP.Method != "" {
 		return handleAPIRequest(apiReq)
 	}
 
@@ -93,8 +93,22 @@ func handleEventBridge(payload EventBridgePayload) (any, error) {
 // handleAPIRequest handles incoming requests to the function URL. Requests to /redirect come
 // from a member's browser after submitting the Training form; everything else is a Jotform webhook.
 func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
-	if req.RawPath == redirectPath {
-		return handleRedirectRequest(req)
+	switch req.RawPath {
+	case redirectPath, payPath, paymentCompletePath, stripeWebhookPath:
+		// The payment endpoints only exist in Stripe mode
+		if paymentMode != paymentModeStripe {
+			return htmlResponse(http.StatusNotFound, pageNotFound, clubEmail), nil
+		}
+		switch req.RawPath {
+		case redirectPath:
+			return handleRedirectRequest(req)
+		case payPath:
+			return handlePayLink(req)
+		case paymentCompletePath:
+			return handlePaymentComplete(req)
+		default:
+			return handleStripeWebhook(req)
+		}
 	}
 
 	fmt.Printf("Handle API, body %s", req.Body)
@@ -234,6 +248,10 @@ func main() {
 
 	jotformClient = jotform.NewJotFormAPIClient(
 		getSecret("bathrc-jotform-apikey"), "json", logLevel == "debug")
+
+	if paymentMode == paymentModeStripe {
+		loadStripeConfig()
+	}
 
 	lambda.Start(handler)
 }
