@@ -60,3 +60,13 @@ func releaseExpiredBookings(received []*db.TrainingSubmission, now time.Time) ([
 	}
 	return stillOpen, nil
 }
+
+// pagePaymentWindowClosed is shown when a payment link is used after the payment deadline.
+var pagePaymentWindowClosed = page{
+	Title: "The time to pay has passed",
+	Paragraphs: []string{
+		"This booking wasn’t paid for in time, so the place has been released for someone else to book.",
+		"You’re welcome to book again if places are still available.",
+	},
+	ContactClub: true,
+}
