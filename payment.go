@@ -2,6 +2,7 @@ package main
 
 import (
 	"benjitucker/bathrc-accounts/db"
+	"benjitucker/bathrc-accounts/email"
 	"benjitucker/bathrc-accounts/stripe"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -30,6 +31,10 @@ var (
 	stripeClient        *stripe.Client
 	stripeWebhookSecret string
 	payLinkSecret       string
+
+	// publicBaseURL is this Lambda's function URL, for links in emails. It comes from the SSM
+	// parameter named by PUBLIC_BASE_URL_PARAM, or failing that from the first request received.
+	publicBaseURL string
 )
 
 // loadStripeConfig reads the Stripe secrets. Missing secrets are reported, not fatal: the
@@ -46,6 +51,16 @@ func loadStripeConfig() {
 	stripeClient = stripe.NewClient(readParam("STRIPE_SECRET_KEY_PARAM"))
 	stripeWebhookSecret = readParam("STRIPE_WEBHOOK_SECRET_PARAM")
 	payLinkSecret = readParam("PAY_LINK_SECRET_PARAM")
+	if name := os.Getenv("PUBLIC_BASE_URL_PARAM"); name != "" {
+		publicBaseURL = strings.TrimSuffix(getSecret(name), "/")
+	}
+}
+
+// rememberBaseURL records this function URL's address from a request, if it isn't configured.
+func rememberBaseURL(domainName string) {
+	if publicBaseURL == "" && domainName != "" {
+		publicBaseURL = "https://" + domainName
+	}
 }
 
 // payLinkToken signs a submission id, so payment links can't be made up for other bookings.
@@ -230,6 +245,9 @@ func testModeRecipients(members []*db.MemberRecord) []*db.MemberRecord {
 	}
 	result := make([]*db.MemberRecord, len(members))
 	for i, member := range members {
+		if member == nil {
+			continue
+		}
 		copied := *member
 		if i == 0 {
 			copied.Email = testEmail
@@ -239,4 +257,136 @@ func testModeRecipients(members []*db.MemberRecord) []*db.MemberRecord {
 		result[i] = &copied
 	}
 	return result
+}
+
+// payLinkDetailsFor is the payment link and amount for a submission's bookings.
+func payLinkDetailsFor(bookings []*db.TrainingSubmission) (email.PayLinkDetails, error) {
+	if len(bookings) == 0 {
+		return email.PayLinkDetails{}, fmt.Errorf("no bookings")
+	}
+	if publicBaseURL == "" || payLinkSecret == "" {
+		return email.PayLinkDetails{}, fmt.Errorf("payment links are not configured")
+	}
+	submissionId, _, err := parseId(bookings[0].GetID())
+	if err != nil {
+		return email.PayLinkDetails{}, err
+	}
+	var amount int64
+	for _, booking := range bookings {
+		if !booking.PricesFound {
+			return email.PayLinkDetails{}, fmt.Errorf("booking %s has no prices", booking.GetID())
+		}
+		amount += chargeAmountPence(booking)
+	}
+	return email.PayLinkDetails{URL: payLinkURL(publicBaseURL, submissionId), AmountPence: amount}, nil
+}
+
+// The booking emails. In Stripe mode they carry a payment link; otherwise the bank transfer
+// details, as before. In test mode they only go to the test addresses.
+
+func emailReceivedRequest(members []*db.MemberRecord, bookings []*db.TrainingSubmission, extraText string) {
+	members = testModeRecipients(members)
+	if paymentMode != paymentModeStripe {
+		emailHandler.SendReceivedRequest(members, bookings, extraText)
+		return
+	}
+	pay, err := payLinkDetailsFor(bookings)
+	if err != nil {
+		reportPayLinkProblem(bookings, err)
+		return
+	}
+	emailHandler.SendReceivedRequestPayLink(members, bookings, extraText, pay)
+}
+
+func emailPayReminder(members []*db.MemberRecord, bookings []*db.TrainingSubmission) {
+	members = testModeRecipients(members)
+	if paymentMode != paymentModeStripe {
+		emailHandler.SendPayReminder(members, bookings)
+		return
+	}
+	pay, err := payLinkDetailsFor(bookings)
+	if err != nil {
+		reportPayLinkProblem(bookings, err)
+		return
+	}
+	emailHandler.SendPayReminderPayLink(members, bookings, pay)
+}
+
+// emailDuplicateRequest tells the member their request repeats an earlier one. In Stripe
+// mode the payment link is for the earlier booking.
+func emailDuplicateRequest(members []*db.MemberRecord, bookings, earlierBookings []*db.TrainingSubmission) {
+	members = testModeRecipients(members)
+	if paymentMode != paymentModeStripe {
+		emailHandler.SendReceivedDuplicateRequest(members, bookings, earlierBookings)
+		return
+	}
+	pay, err := payLinkDetailsFor(earlierBookings)
+	if err != nil {
+		// the earlier booking may be paid already, or not payable online; send without a link
+		pay = email.PayLinkDetails{}
+	}
+	emailHandler.SendReceivedDuplicateRequestPayLink(members, bookings, earlierBookings, pay)
+}
+
+func reportPayLinkProblem(bookings []*db.TrainingSubmission, err error) {
+	id := ""
+	if len(bookings) > 0 {
+		id = bookings[0].GetID()
+	}
+	fmt.Printf("ERROR: no payment link for booking %s: %v\n", id, err)
+	emailHandler.SendEmail(testEmail, "Training: PAYMENT LINK FAILED",
+		fmt.Sprintf("Could not email a payment link for booking %s, so the member has not been emailed: %v", id, err))
+}
+
+// releaseHeldBookings is called in Stripe mode when a membership refresh may release a held
+// submission set. Each booking's membership is checked again against the new data, its price
+// follows the result (member price if valid on the session date, otherwise non-member price),
+// and the member is emailed a payment link.
+func releaseHeldBookings(members []*db.MemberRecord, bookings []*db.TrainingSubmission, records []*db.MemberRecord) error {
+	if len(bookings) != len(members) {
+		// a rider in the set is still unknown; that rider's own check drops the set
+		return nil
+	}
+
+	lapsed, nowMember := false, false
+	for _, booking := range bookings {
+		member := findMemberInRecords(booking.MembershipNumber, records)
+		if member == nil {
+			found, err := memberTable.Get(booking.MembershipNumber)
+			if err != nil {
+				return err
+			}
+			member = found
+		}
+		if member == nil {
+			return nil
+		}
+		booking.FoundMemberRecord = true
+		booking.ActualCurrMem = membershipDateCheck(member, &booking.TrainingDate)
+		booking.LapsedMembership = false
+		if booking.RequestCurrMem && !booking.ActualCurrMem {
+			lapsed = true
+		}
+		if !booking.RequestCurrMem && booking.ActualCurrMem {
+			nowMember = true
+		}
+	}
+
+	emailReceivedRequest(members, bookings, refreshedPriceText(lapsed, nowMember))
+	for _, booking := range bookings {
+		booking.ReceivedRequestEmailSent = true
+	}
+	return trainTable.PutAll(bookings)
+}
+
+// refreshedPriceText explains a price that differs from the one the member asked for.
+func refreshedPriceText(lapsed, nowMember bool) string {
+	switch {
+	case lapsed:
+		return "Your membership doesn’t cover the date of the training session, so the non-member price applies. " +
+			"If you have renewed your membership with Sport80 since booking, please contact the club before paying."
+	case nowMember:
+		return "Good news: your membership is valid on the date of the session, so the member price applies."
+	}
+	return ""
 }
