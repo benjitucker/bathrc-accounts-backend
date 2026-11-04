@@ -227,6 +227,9 @@ func main() {
 		MonitorEmail:  testEmail,
 		ClubEmail:     clubEmail,
 		TrainingEmail: trainingEmail,
+		// In test mode every email goes only to the test address, whoever it is addressed to
+		TestMode:      testMode,
+		TestRecipient: testEmail,
 	})
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
