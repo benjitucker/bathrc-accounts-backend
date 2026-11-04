@@ -40,6 +40,7 @@ func (eh *EmailHandler) sendReceivedDuplicateRequest(members []*db.MemberRecord,
 			Amount:        amountText(pay, submission),
 			PayDate:       formatCustomDate(submission.PayByDate),
 			PayLink:       payLinkURL(pay),
+			PayDeadline:   payDeadline(pay),
 		})
 	} else if len(submissions) == 2 {
 		// Assume entry 2 submission

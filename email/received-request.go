@@ -10,18 +10,24 @@ type ReceivedRequestData struct {
 	FirstName, Venue, TrainingDate, AccountNumber, SortCode, Reference, Amount, PayDate, ExtraText string
 	// PayLink, when set, replaces the bank transfer details with a payment link
 	PayLink string
+	// PayDeadline, when set with PayLink, is when the place will be released if unpaid
+	PayDeadline string
 }
 
 type ReceivedRequest2Data struct {
 	FirstName, Venue, TrainingDate, Venue2, TrainingDate2, AccountNumber, SortCode, Reference, Amount, PayDate, ExtraText string
 	// PayLink, when set, replaces the bank transfer details with a payment link
 	PayLink string
+	// PayDeadline, when set with PayLink, is when the places will be released if unpaid
+	PayDeadline string
 }
 
 // PayLinkDetails is an online payment link and the amount it asks for.
 type PayLinkDetails struct {
 	URL         string
 	AmountPence int64
+	// Deadline, if set, is when an unpaid booking will be released, formatted for display
+	Deadline string
 }
 
 // amountText is the amount to show: the payment link's amount, or the bookings' total.
@@ -41,6 +47,13 @@ func payLinkURL(pay *PayLinkDetails) string {
 		return ""
 	}
 	return pay.URL
+}
+
+func payDeadline(pay *PayLinkDetails) string {
+	if pay == nil {
+		return ""
+	}
+	return pay.Deadline
 }
 
 func formatAmount(amountPence int64) string {
@@ -91,6 +104,7 @@ func (eh *EmailHandler) sendReceivedRequest(members []*db.MemberRecord, submissi
 			PayDate:       formatCustomDate(submission.PayByDate),
 			ExtraText:     extraText,
 			PayLink:       payLinkURL(pay),
+			PayDeadline:   payDeadline(pay),
 		})
 	} else if len(submissions) == 2 {
 		// Assume entry 2 submission
@@ -119,6 +133,7 @@ func (eh *EmailHandler) sendReceivedRequest(members []*db.MemberRecord, submissi
 			PayDate:       formatCustomDate(earliestDate(submissions[0].PayByDate, submissions[1].PayByDate)),
 			ExtraText:     extraText,
 			PayLink:       payLinkURL(pay),
+			PayDeadline:   payDeadline(pay),
 		})
 	} else {
 		// TODO - more that 2 entry submission

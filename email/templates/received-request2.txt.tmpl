@@ -2,7 +2,7 @@ Dear {{.FirstName}},
 
   Your request for training sessions at {{.Venue}} on {{.TrainingDate}} and {{.Venue2}} on {{.TrainingDate2}} have been received. {{.ExtraText}}
 
-{{if .PayLink}}  Please pay £{{.Amount}} by {{.PayDate}} to secure your spaces:
+{{if .PayLink}}{{if .PayDeadline}}  Please pay £{{.Amount}} by {{.PayDeadline}} to secure your spaces. If we haven’t received payment by then, your places will be released so someone else can book.{{else}}  Please pay £{{.Amount}} by {{.PayDate}} to secure your spaces:{{end}}
 
   {{.PayLink}}{{else}}  Please make BACS payment by {{.PayDate}} to secure your spaces:
 
