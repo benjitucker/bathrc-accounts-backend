@@ -93,6 +93,8 @@ func handleEventBridge(payload EventBridgePayload) (any, error) {
 // handleAPIRequest handles incoming requests to the function URL. Requests to /redirect come
 // from a member's browser after submitting the Training form; everything else is a Jotform webhook.
 func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
+	rememberBaseURL(req.RequestContext.DomainName)
+
 	switch req.RawPath {
 	case redirectPath, payPath, paymentCompletePath, stripeWebhookPath:
 		// The payment endpoints only exist in Stripe mode
@@ -109,6 +111,11 @@ func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctio
 		default:
 			return handleStripeWebhook(req)
 		}
+	}
+
+	// Jotform webhooks are POSTs. Anything else, such as a browser asking for /favicon.ico, is not found.
+	if req.RequestContext.HTTP.Method != "" && req.RequestContext.HTTP.Method != http.MethodPost {
+		return plainResponse(http.StatusNotFound, "not found"), nil
 	}
 
 	fmt.Printf("Handle API, body %s", req.Body)
