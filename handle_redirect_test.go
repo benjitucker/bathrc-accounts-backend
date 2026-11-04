@@ -223,3 +223,17 @@ func TestParseTrainingFormID(t *testing.T) {
 		}
 	}
 }
+
+func TestPages_MatchClubStyle(t *testing.T) {
+	body := htmlResponse(http.StatusOK, paymentCancelledPage("https://example.org/pay?s=1&t=x"), "club@example.org").Body
+	for _, want := range []string{
+		`src="data:image/png;base64,`, // the logo is inline, so the page needs no other requests
+		"background: #8B0707",         // club colour
+		"background: #6e0303",         // button accent colour
+		`class="button"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page is missing %q", want)
+		}
+	}
+}
