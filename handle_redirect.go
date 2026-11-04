@@ -2,6 +2,7 @@ package main
 
 import (
 	"benjitucker/bathrc-accounts/db"
+	"benjitucker/bathrc-accounts/email"
 	"benjitucker/bathrc-accounts/jotform-webhook"
 	"bytes"
 	"encoding/base64"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -332,6 +334,12 @@ func outcomePage(outcome redirectOutcome) page {
 	}
 }
 
+// The pages match the club's emails: the logo on a white card over the club's deep red.
+const (
+	clubColour   = "#8B0707"
+	accentColour = "#6e0303" // buttons
+)
+
 var pageTemplate = template.Must(template.New("page").Parse(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -339,21 +347,24 @@ var pageTemplate = template.Must(template.New("page").Parse(`<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Page.Title}} – Bath Riding Club</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-         margin: 0; padding: 2rem 1.25rem; background: #f6f6f4; color: #1f2933; line-height: 1.5; }
-  main { max-width: 34rem; margin: 0 auto; background: #fff; border-radius: 12px; padding: 1.75rem 1.5rem;
-         box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  h1 { font-size: 1.4rem; margin: 0 0 1rem; }
-  p { margin: 0 0 0.85rem; }
-  .club { margin-top: 1.5rem; font-size: 0.9rem; color: #52606d; }
-  a { color: #1d4ed8; }
-  a.button { display: inline-block; margin: 0.5rem 0 1rem; padding: 0.7rem 1.4rem; border-radius: 8px;
-             background: #1d4ed8; color: #fff; text-decoration: none; font-weight: 600; }
+  body { margin: 0; padding: 30px 12px; background: ` + clubColour + `; color: #333333;
+         font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; }
+  main { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden;
+         box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 30px; box-sizing: border-box; }
+  .logo { display: block; margin: 0 auto 24px; width: 100px; height: 100px; }
+  h1 { font-size: 18px; font-weight: bold; margin: 0 0 20px; }
+  p { margin: 0 0 20px; }
+  a { color: ` + clubColour + `; }
+  a.button { display: inline-block; padding: 12px 28px; border-radius: 6px; background: ` + accentColour + `;
+             color: #ffffff; text-decoration: none; font-weight: bold; }
+  a.button:hover, a.button:focus { background: ` + clubColour + `; }
+  .club { margin: 30px 0 0; font-weight: bold; color: ` + clubColour + `; }
 </style>
 </head>
 <body>
 <main>
-<h1>{{.Page.Title}}</h1>
+{{if .Logo}}<img class="logo" src="{{.Logo}}" alt="Bath Riding Club" width="100" height="100">
+{{end}}<h1>{{.Page.Title}}</h1>
 {{range .Page.Paragraphs}}<p>{{.}}</p>
 {{end}}{{if .Page.LinkURL}}<p><a class="button" href="{{.Page.LinkURL}}">{{.Page.LinkText}}</a></p>
 {{end}}{{if and .Page.ContactClub .ClubEmail}}<p>You can contact the club at <a href="mailto:{{.ClubEmail}}">{{.ClubEmail}}</a>.</p>
@@ -363,13 +374,24 @@ var pageTemplate = template.Must(template.New("page").Parse(`<!DOCTYPE html>
 </html>
 `))
 
+// logoDataURI is the club logo as a data URI, so the pages need no other requests.
+var logoDataURI = sync.OnceValue(func() template.URL {
+	logo, err := email.LogoPNG()
+	if err != nil {
+		fmt.Printf("ERROR: loading logo: %v\n", err)
+		return ""
+	}
+	return template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(logo))
+})
+
 // htmlResponse renders a page as a function URL response.
 func htmlResponse(statusCode int, p page, clubEmailAddress string) events.LambdaFunctionURLResponse {
 	var buf bytes.Buffer
 	err := pageTemplate.Execute(&buf, struct {
 		Page      page
 		ClubEmail string
-	}{p, clubEmailAddress})
+		Logo      template.URL
+	}{p, clubEmailAddress, logoDataURI()})
 	if err != nil {
 		fmt.Printf("ERROR: rendering page: %v\n", err)
 		return events.LambdaFunctionURLResponse{
