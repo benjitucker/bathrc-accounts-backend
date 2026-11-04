@@ -42,6 +42,9 @@ type TrainingSubmission struct {
 	MemberPricePence    int64 `dynamodbav:"memberPricePence"`
 	NonMemberPricePence int64 `dynamodbav:"nonMemberPricePence"`
 	PricesFound         bool  `dynamodbav:"pricesFound"`
+	// PaymentDueAt is when an unpaid booking is released (Stripe mode). It is set when the
+	// member is first sent a payment link; zero means no deadline has started.
+	PaymentDueAt time.Time `dynamodbav:"paymentDueAt"`
 }
 
 // State Machine

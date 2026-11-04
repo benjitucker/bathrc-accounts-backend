@@ -67,6 +67,10 @@ func handlePayLink(req events.LambdaFunctionURLRequest) (events.LambdaFunctionUR
 		return htmlResponse(http.StatusOK, outcomePage(outcome), clubEmail), nil
 	}
 
+	if paymentWindowClosed(bookings, time.Now()) {
+		return htmlResponse(http.StatusOK, pagePaymentWindowClosed, clubEmail), nil
+	}
+
 	checkoutURL, err := startCheckout(submissionId, bookings, baseURL(req))
 	if err != nil {
 		return paymentErrorResponse(submissionId, err), nil

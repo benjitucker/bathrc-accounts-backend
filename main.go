@@ -203,8 +203,13 @@ func main() {
 		fmt.Printf("ERROR: %v\n", configErr)
 		return
 	}
+	paymentWindow, configErr = parsePaymentWindow(os.Getenv("PAYMENT_WINDOW"))
+	if configErr != nil {
+		fmt.Printf("ERROR: %v\n", configErr)
+		return
+	}
 	if paymentMode != paymentModeBACS || trainingFormID != productionTrainingFormID {
-		fmt.Printf("Payment mode %q, training form %d\n", paymentMode, trainingFormID)
+		fmt.Printf("Payment mode %q, training form %d, payment window %s\n", paymentMode, trainingFormID, paymentWindow)
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx)

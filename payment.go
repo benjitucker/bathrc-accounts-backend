@@ -23,8 +23,13 @@ import (
 // PAY_LINK_SECRET_PARAM (signs the payment links in emails and pages).
 
 const (
-	// How long a Stripe payment page stays usable. Stripe requires 30 minutes to 24 hours.
-	checkoutSessionLifetime = time.Hour
+	// How long a Stripe payment page stays usable. Stripe requires at least 30 minutes.
+	checkoutSessionLifetime = 31 * time.Minute
+
+	// An unpaid booking is released this long after its deadline. It is longer than a payment
+	// page lasts, so a page opened before the deadline has expired before the booking is
+	// released, and no payment can arrive for a released booking.
+	paymentReleaseGrace = 35 * time.Minute
 )
 
 var (
@@ -239,6 +244,88 @@ func applyPayment(bookings []*db.TrainingSubmission, paymentId string, amountPai
 	return result
 }
 
+// startPaymentWindow starts the time a member has to pay, if it hasn't started already.
+func startPaymentWindow(bookings []*db.TrainingSubmission, now time.Time) {
+	for _, booking := range bookings {
+		if booking.PaymentDueAt.IsZero() {
+			booking.PaymentDueAt = now.Add(paymentWindow)
+		}
+	}
+}
+
+// paymentDeadline is the earliest payment deadline of a submission's bookings, or zero if none.
+func paymentDeadline(bookings []*db.TrainingSubmission) time.Time {
+	var deadline time.Time
+	for _, booking := range bookings {
+		if !booking.PaymentDueAt.IsZero() && (deadline.IsZero() || booking.PaymentDueAt.Before(deadline)) {
+			deadline = booking.PaymentDueAt
+		}
+	}
+	return deadline
+}
+
+// paymentWindowClosed reports whether the time to pay for the bookings has passed.
+func paymentWindowClosed(bookings []*db.TrainingSubmission, now time.Time) bool {
+	deadline := paymentDeadline(bookings)
+	return !deadline.IsZero() && now.After(deadline)
+}
+
+var ukTime = func() *time.Location {
+	loc, err := time.LoadLocation("Europe/London")
+	if err != nil {
+		return time.UTC
+	}
+	return loc
+}()
+
+// formatDeadline shows a deadline in UK time, e.g. "3:45 PM on Thursday 5th November".
+func formatDeadline(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	local := t.In(ukTime)
+	return fmt.Sprintf("%s on %s", formatTime(local), formatCustomDate(local))
+}
+
+// expiredUnpaidSubmissions returns the ids of submissions whose bookings are all unpaid and
+// whose payment deadline passed more than paymentReleaseGrace ago.
+func expiredUnpaidSubmissions(bookings []*db.TrainingSubmission, now time.Time) []string {
+	sets := map[string][]*db.TrainingSubmission{}
+	var order []string
+	for _, booking := range bookings {
+		submissionId, _, err := parseId(booking.GetID())
+		if err != nil {
+			continue
+		}
+		if _, seen := sets[submissionId]; !seen {
+			order = append(order, submissionId)
+		}
+		sets[submissionId] = append(sets[submissionId], booking)
+	}
+
+	var expired []string
+	for _, submissionId := range order {
+		if setExpiredUnpaid(sets[submissionId], now) {
+			expired = append(expired, submissionId)
+		}
+	}
+	return expired
+}
+
+// setExpiredUnpaid reports whether a submission's bookings should be released for non-payment.
+func setExpiredUnpaid(bookings []*db.TrainingSubmission, now time.Time) bool {
+	if len(bookings) == 0 {
+		return false
+	}
+	for _, booking := range bookings {
+		if booking.SubmissionState != db.ReceivedSubmissionState || booking.PaymentRecordId != "" ||
+			booking.PaymentDueAt.IsZero() {
+			return false
+		}
+	}
+	return now.After(paymentDeadline(bookings).Add(paymentReleaseGrace))
+}
+
 // payLinkDetailsFor is the payment link and amount for a submission's bookings.
 func payLinkDetailsFor(bookings []*db.TrainingSubmission) (email.PayLinkDetails, error) {
 	if len(bookings) == 0 {
@@ -258,7 +345,11 @@ func payLinkDetailsFor(bookings []*db.TrainingSubmission) (email.PayLinkDetails,
 		}
 		amount += chargeAmountPence(booking)
 	}
-	return email.PayLinkDetails{URL: payLinkURL(publicBaseURL, submissionId), AmountPence: amount}, nil
+	return email.PayLinkDetails{
+		URL:         payLinkURL(publicBaseURL, submissionId),
+		AmountPence: amount,
+		Deadline:    formatDeadline(paymentDeadline(bookings)),
+	}, nil
 }
 
 // The booking emails. In Stripe mode they carry a payment link; otherwise the bank transfer
@@ -269,6 +360,9 @@ func emailReceivedRequest(members []*db.MemberRecord, bookings []*db.TrainingSub
 		emailHandler.SendReceivedRequest(members, bookings, extraText)
 		return
 	}
+	// The time to pay starts when the member is first sent a payment link. The caller saves
+	// the bookings afterwards.
+	startPaymentWindow(bookings, time.Now())
 	pay, err := payLinkDetailsFor(bookings)
 	if err != nil {
 		reportPayLinkProblem(bookings, err)
