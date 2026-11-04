@@ -117,7 +117,7 @@ func handlePayReminder(receivedSubmissions []*db.TrainingSubmission) error {
 		if len(linkedSubmissions) == len(linkedMemberRecords) {
 			fmt.Printf("sending a reminder for payment of submission id %s and linked\n", earliestSubmission.GetID())
 
-			emailHandler.SendPayReminder(linkedMemberRecords, linkedSubmissions)
+			emailPayReminder(linkedMemberRecords, linkedSubmissions)
 
 			// update linked submissions
 			for _, sub := range linkedSubmissions {
