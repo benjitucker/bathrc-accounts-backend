@@ -58,15 +58,14 @@ func (r *TrainingRawRequestWithID) UnmarshalJSON(b []byte) error {
 			suffix = fmt.Sprintf("-%d", i+1)
 		}
 
-		horse := extractAPIString(byName, "horseName18"+suffix)
-		if horse == "" {
-			if i == 0 {
-				continue
-			}
+		// A session is present when it has a membership number: the same rule as the webhook
+		// (TrainingRawRequest), so both ways of reading a submission find the same sessions.
+		memb := extractAPIString(byName, "brcMembership15"+suffix)
+		if memb == "" {
 			break
 		}
 
-		memb := extractAPIString(byName, "brcMembership15"+suffix)
+		horse := extractAPIString(byName, "horseName18"+suffix)
 		venue := extractAPIString(byName, "selectedVenue"+suffix)
 		amount := extractAPIString(byName, "amount"+suffix)
 
@@ -88,9 +87,14 @@ func (r *TrainingRawRequestWithID) UnmarshalJSON(b []byte) error {
 		// time comes in in the America/New_York zone
 		sess.Timezone = "America/New_York"
 
-		start, err := ParseSessionDateNew(sess.Date, sess.Timezone)
-		if err != nil {
-			return fmt.Errorf("session parse failed: %w", err)
+		// As in the webhook, a missing session date leaves the session empty rather than failing
+		var start time.Time
+		if sess.Date != "" {
+			var err error
+			start, err = ParseSessionDateNew(sess.Date, sess.Timezone)
+			if err != nil {
+				return fmt.Errorf("session %d parse failed: %w", i+1, err)
+			}
 		}
 
 		var mins int
