@@ -127,23 +127,33 @@ func redirectOutcomeFor(submissionId string) (redirectOutcome, []*db.TrainingSub
 		return outcomeError, nil, err
 	}
 
-	data, err := jotformClient.GetSubmission(sid)
+	// If we already have this submission (the webhook got there first, or the member has
+	// reloaded the page), decide from our own records: the Jotform submission may since have
+	// been deleted, for example as a duplicate.
+	existing, err := readBookings(submissionId)
 	if err != nil {
-		return outcomeError, nil, fmt.Errorf("failed to get submission from Jotform: %w", err)
-	}
-
-	var submission jotform_webhook.TrainingRawRequestWithID
-	if err := json.Unmarshal(data, &submission); err != nil {
-		return outcomeError, nil, fmt.Errorf("failed to parse submission from Jotform: %w", err)
-	}
-
-	if submission.FormID != strconv.FormatInt(trainingFormID, 10) {
-		return outcomeError, nil, fmt.Errorf("submission belongs to form %q, not the training form %d",
-			submission.FormID, trainingFormID)
-	}
-
-	if _, err := processTrainingRequest(submissionId, &submission); err != nil {
 		return outcomeError, nil, err
+	}
+
+	if len(existing) == 0 {
+		data, err := jotformClient.GetSubmission(sid)
+		if err != nil {
+			return outcomeError, nil, fmt.Errorf("failed to get submission from Jotform: %w", err)
+		}
+
+		var submission jotform_webhook.TrainingRawRequestWithID
+		if err := json.Unmarshal(data, &submission); err != nil {
+			return outcomeError, nil, fmt.Errorf("failed to parse submission from Jotform: %w", err)
+		}
+
+		if submission.FormID != strconv.FormatInt(trainingFormID, 10) {
+			return outcomeError, nil, fmt.Errorf("submission belongs to form %q, not the training form %d",
+				submission.FormID, trainingFormID)
+		}
+
+		if _, err := processTrainingRequest(submissionId, &submission); err != nil {
+			return outcomeError, nil, err
+		}
 	}
 
 	bookings, err := waitForProcessedBookings(submissionId)

@@ -35,7 +35,8 @@ func (r *TrainingRawRequestWithID) UnmarshalJSON(b []byte) error {
 	r.SubmissionID = sub.ID
 	r.FormID = sub.FormID
 
-	created, _ := time.Parse("2006-01-02 15:04:05", sub.CreatedAt)
+	// The API reports times in the account's time zone (US Eastern), not UTC
+	created, _ := time.ParseInLocation("2006-01-02 15:04:05", sub.CreatedAt, apiTimeZone)
 	r.SubmitDate = UnixMillis(created)
 
 	// Build name lookup
@@ -116,6 +117,15 @@ func (r *TrainingRawRequestWithID) UnmarshalJSON(b []byte) error {
 
 	return nil
 }
+
+// apiTimeZone is the time zone of the times in Jotform API responses.
+var apiTimeZone = func() *time.Location {
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		return time.UTC
+	}
+	return loc
+}()
 
 func extractAPIString(m map[string]apiAnswerField, name string) string {
 	if f, ok := m[name]; ok && len(f.Answer) > 0 {
