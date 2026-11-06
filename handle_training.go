@@ -47,7 +47,17 @@ func findDuplicate(submissions []*db.TrainingSubmission, submission *db.Training
 }
 
 // handleTrainingRequest processes a single training request submission from Jotform, creating multiple database entries if needed.
+// A submission that has already been processed is skipped.
 func handleTrainingRequest(submissionId string, request jotform_webhook.TrainingRequest) error {
+	_, err := processTrainingRequest(submissionId, request)
+	return err
+}
+
+// processTrainingRequest processes a training request submission and reports whether it had
+// already been processed. The Jotform webhook, the post-submission redirect and the hourly
+// catch-up can all receive the same submission; only the first to claim it does the work, so
+// records are not overwritten and emails are not sent twice.
+func processTrainingRequest(submissionId string, request jotform_webhook.TrainingRequest) (alreadyProcessed bool, err error) {
 
 	var newSubmissions []*db.TrainingSubmission
 	rawRequest := request.GetRawRequest()
@@ -56,14 +66,17 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 	// Get all received submissions to check for duplicates
 	receivedSubmissions, err := trainTable.GetAllOfStateRecent(db.ReceivedSubmissionState, time.Now())
 	if err != nil {
-		return fmt.Errorf("failed to get received submissions for duplicate check: %w", err)
+		return false, fmt.Errorf("failed to get received submissions for duplicate check: %w", err)
+	}
+	if paymentMode == paymentModeStripe {
+		receivedSubmissions = openForDuplicateCheck(receivedSubmissions, time.Now())
 	}
 
 	for _, entry := range rawRequest.Entries {
 
 		amount, err := strconv.ParseFloat(entry.Amount, 64)
 		if err != nil {
-			return fmt.Errorf("failed to parse amount float number (%s): %w", entry.Amount, err)
+			return false, fmt.Errorf("failed to parse amount float number (%s): %w", entry.Amount, err)
 		}
 		amountPence := math.Floor(amount * 100)
 		requestDate := time.Time(rawRequest.SubmitDate)
@@ -104,6 +117,41 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 		newSubmissions = append(newSubmissions, &newSubmission)
 	}
 
+	if len(newSubmissions) == 0 {
+		return false, nil
+	}
+
+	// fill the cross-references before the claim, so the claim record is complete
+	for _, submission := range newSubmissions {
+		for i := range newSubmissions {
+			submission.LinkedSubmissionIds =
+				append(submission.LinkedSubmissionIds, makeId(submissionId, i))
+		}
+	}
+
+	// In Stripe mode, record each venue's prices from the form definition. This has no side
+	// effects, so it is done before the claim; any problem is reported after it.
+	var priceProblem string
+	if paymentMode == paymentModeStripe {
+		priceProblem = recordPrices(newSubmissions)
+	}
+
+	// Claim the submission before doing anything with side effects (deleting duplicates,
+	// sending emails). If the claim fails, another invocation has already processed it.
+	claimed, err := trainTable.PutIfAbsent(newSubmissions[0], makeId(submissionId, 0))
+	if err != nil {
+		return false, fmt.Errorf("failed to claim submission %s: %w", submissionId, err)
+	}
+	if !claimed {
+		fmt.Printf("submission %s has already been processed, skipping\n", submissionId)
+		return true, nil
+	}
+
+	if priceProblem != "" {
+		emailHandler.SendEmail(testEmail, "Training: PRICES NOT FOUND",
+			fmt.Sprintf("Submission %s is held because its prices could not be read.\n\n%s", submissionId, priceProblem))
+	}
+
 	memberRecords := make([]*db.MemberRecord, 2)
 	sendReceivedRequestEmail := true
 
@@ -111,7 +159,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 	if hasDuplicate {
 		err = dropJotformTrainingSubmission(submissionId)
 		if err != nil {
-			return fmt.Errorf("failed to drop duplicate submission id %s: %w", submissionId, err)
+			return false, fmt.Errorf("failed to drop duplicate submission id %s: %w", submissionId, err)
 		}
 	}
 
@@ -121,15 +169,9 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			submission.SubmissionState = db.DroppedSubmissionState
 		}
 
-		// fill the cross-references
-		for i := range newSubmissions {
-			submission.LinkedSubmissionIds =
-				append(submission.LinkedSubmissionIds, makeId(submissionId, i))
-		}
-
 		err := trainTable.Put(submission, makeId(submissionId, entryIndex))
 		if err != nil {
-			return fmt.Errorf("failed to store training submission %s for entry %d: %w", submissionId, entryIndex, err)
+			return false, fmt.Errorf("failed to store training submission %s for entry %d: %w", submissionId, entryIndex, err)
 		}
 
 		// Check membership number
@@ -146,18 +188,9 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			// update
 			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
-				return fmt.Errorf("failed to update submission %s after membership record not found for entry %d: %w", submissionId, entryIndex, err)
+				return false, fmt.Errorf("failed to update submission %s after membership record not found for entry %d: %w", submissionId, entryIndex, err)
 			}
 			continue
-		}
-
-		// Use test email addresses if in test mode
-		if testMode {
-			if entryIndex == 0 {
-				memberRecord.Email = testEmail
-			} else {
-				memberRecord.Email = testEmail2
-			}
 		}
 
 		memberRecords[entryIndex] = memberRecord
@@ -184,7 +217,7 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			// update
 			err = trainTable.Put(submission, submission.GetID())
 			if err != nil {
-				return fmt.Errorf("failed to update submission %s after membership check for entry %d: %w", submissionId, entryIndex, err)
+				return false, fmt.Errorf("failed to update submission %s after membership check for entry %d: %w", submissionId, entryIndex, err)
 			}
 
 			continue
@@ -212,28 +245,63 @@ func handleTrainingRequest(submissionId string, request jotform_webhook.Training
 			if submission.DuplicateOfId != "" {
 				dupSubmission, err := trainTable.Get(submission.DuplicateOfId)
 				if err != nil {
-					return fmt.Errorf("failed to get submission %s duplicate %s: %w", submissionId, submission.DuplicateOfId, err)
+					return false, fmt.Errorf("failed to get submission %s duplicate %s: %w", submissionId, submission.DuplicateOfId, err)
 				}
 				dupOfSubmissions = append(dupOfSubmissions, dupSubmission)
 			}
 		}
 
 		if hasDuplicate && len(dupOfSubmissions) > 0 {
-			emailHandler.SendReceivedDuplicateRequest(memberRecords, newSubmissions, dupOfSubmissions)
+			emailDuplicateRequest(memberRecords, newSubmissions, dupOfSubmissions)
 		} else {
-			emailHandler.SendReceivedRequest(memberRecords, newSubmissions, "")
+			emailReceivedRequest(memberRecords, newSubmissions, "")
 		}
 	} else {
 		for _, submission := range newSubmissions {
 			submission.ReceivedRequestEmailSent = false
 			err := trainTable.Put(submission, submission.GetID())
 			if err != nil {
-				return fmt.Errorf("failed to update submission %s for email sent flag: %w", submissionId, err)
+				return false, fmt.Errorf("failed to update submission %s for email sent flag: %w", submissionId, err)
 			}
 		}
 	}
 
-	return nil
+	// Record that the checks are complete, so a waiting redirect can read the final outcome
+	for _, submission := range newSubmissions {
+		submission.Processed = true
+	}
+	err = trainTable.PutAll(newSubmissions)
+	if err != nil {
+		return false, fmt.Errorf("failed to mark submission %s as processed: %w", submissionId, err)
+	}
+
+	return false, nil
+}
+
+// recordPrices stores each booking's venue prices on it. It returns a description of the
+// problem if any venue's prices could not be read, or "" if all were found.
+func recordPrices(bookings []*db.TrainingSubmission) string {
+	fields, err := loadPriceFields()
+	if err != nil {
+		return fmt.Sprintf("Could not read the form's price fields: %v", err)
+	}
+
+	var missing []string
+	for _, booking := range bookings {
+		prices, ok := fields.pricesForVenue(booking.Venue)
+		booking.PricesFound = ok
+		if !ok {
+			missing = append(missing, booking.Venue)
+			continue
+		}
+		booking.MemberPricePence = prices.MemberPence
+		booking.NonMemberPricePence = prices.NonMemberPence
+	}
+	if len(missing) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("No price fields found for venue(s) %s. Each venue needs fields with the unique names <venue>mem and <venue>nonmem.\n\n%s",
+		strings.Join(missing, ", "), fields.diagnostic())
 }
 
 // membershipDateCheck verifies if a member's membership is valid on a specific target date.

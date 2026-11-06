@@ -41,6 +41,25 @@ type EmailHandler struct {
 type HandlerParams struct {
 	AccountNumber, SortCode                string
 	MonitorEmail, ClubEmail, TrainingEmail string
+
+	// TestMode sends every email only to TestRecipient, whoever it was addressed to, and adds
+	// the intended recipients to the subject. With TestMode on and no TestRecipient, nothing
+	// is sent. This is the safety net that stops a test environment emailing real members.
+	TestMode      bool
+	TestRecipient string
+}
+
+// deliverTo returns who an email addressed to recipients is actually sent to, and its subject.
+// ok is false if the email must not be sent at all.
+func (eh *EmailHandler) deliverTo(recipients []string, subject string) (to []string, sendSubject string, ok bool) {
+	if !eh.params.TestMode {
+		return recipients, subject, true
+	}
+	if eh.params.TestRecipient == "" {
+		log.Printf("TEST MODE: no test address configured, so not sending %q to %s", subject, strings.Join(recipients, ", "))
+		return nil, "", false
+	}
+	return []string{eh.params.TestRecipient}, fmt.Sprintf("[TEST for %s] %s", strings.Join(recipients, ", "), subject), true
 }
 
 // NewEmailHandler initializes a new EmailHandler with the provided context, SES client, and configuration parameters.
@@ -111,10 +130,15 @@ func NewEmailHandler(ctx context.Context, sesClient *ses.Client, params HandlerP
 // SendEmail sends a simple text email to a single recipient using AWS SES.
 func (eh *EmailHandler) SendEmail(recipient, subject, body string) {
 
+	to, subject, ok := eh.deliverTo([]string{recipient}, subject)
+	if !ok {
+		return
+	}
+
 	// Build the email input
 	input := &ses.SendEmailInput{
 		Destination: &types.Destination{
-			ToAddresses:  []string{recipient},
+			ToAddresses:  to,
 			BccAddresses: []string{eh.params.MonitorEmail},
 		},
 		ReplyToAddresses: []string{eh.params.ClubEmail},
@@ -154,6 +178,11 @@ func (eh *EmailHandler) SendEmailPrettyAttach(
 	subject, htmlBody, textBody, err := eh.Render(templateName, templateData)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	recipients, subject, ok := eh.deliverTo(recipients, subject)
+	if !ok {
+		return
 	}
 
 	// Read inline logo
@@ -268,6 +297,7 @@ func (eh *EmailHandler) Render(templateName string, data any) (subject, html, te
 	}
 
 	subject = t.Subject
+	tidyForDisplay(data)
 
 	if t.HTML != nil {
 		var buf bytes.Buffer

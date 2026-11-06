@@ -23,6 +23,14 @@ func handleHourly(testMode bool) error {
 		return fmt.Errorf("failed to update in-past submissions: %w", err)
 	}
 
+	// In Stripe mode, release bookings that weren't paid for in time
+	if paymentMode == paymentModeStripe {
+		receivedSubmissions, err = releaseExpiredBookings(receivedSubmissions, now)
+		if err != nil {
+			return fmt.Errorf("failed to release unpaid bookings: %w", err)
+		}
+	}
+
 	paidSubmissions, err := trainTable.GetAllOfStateRecent(db.PaidSubmissionState, now)
 	if err != nil {
 		return err
@@ -117,7 +125,7 @@ func handlePayReminder(receivedSubmissions []*db.TrainingSubmission) error {
 		if len(linkedSubmissions) == len(linkedMemberRecords) {
 			fmt.Printf("sending a reminder for payment of submission id %s and linked\n", earliestSubmission.GetID())
 
-			emailHandler.SendPayReminder(linkedMemberRecords, linkedSubmissions)
+			emailPayReminder(linkedMemberRecords, linkedSubmissions)
 
 			// update linked submissions
 			for _, sub := range linkedSubmissions {

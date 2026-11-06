@@ -33,7 +33,11 @@
                   Just a reminder that payment for your training sessions at <strong>{{.Venue}}</strong> on <strong>{{.TrainingDate}}</strong> and <strong>{{.Venue2}}</strong> on <strong>{{.TrainingDate2}}</strong> is due.
                 </p>
 
-                <p style="margin:0 0 20px 0;">
+{{if .PayLink}}                <p style="margin:0 0 20px 0;">
+                  Please pay <strong>£{{.Amount}}</strong> to secure your spaces:
+                </p>
+
+                <p style="margin:0 0 20px 0;"><a href="{{.PayLink}}" style="display:inline-block; padding:12px 28px; background-color:#8B0707; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:bold;">Pay now</a></p>{{else}}                <p style="margin:0 0 20px 0;">
                   Please make BACS payment to secure your spaces:
                 </p>
 
@@ -58,7 +62,7 @@
                     <td style="padding:4px 0;">Amount:</td>
                     <td style="padding:4px 0;"><strong>£{{.Amount}}</strong></td>
                   </tr>
-                </table>
+                </table>{{end}}
 
                 <p style="margin:0 0 20px 0;">
                   If you’ve already completed the payment, please ignore this email.

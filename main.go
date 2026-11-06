@@ -48,9 +48,9 @@ type EventBridgePayload struct {
 // handler is the entry point for Lambda functions, routing requests to either API Gateway or EventBridge handlers.
 func handler(raw json.RawMessage) (any, error) {
 
-	// Try API Gateway first
+	// Try a function URL request first. These always carry an HTTP method; scheduled events don't.
 	var apiReq events.LambdaFunctionURLRequest
-	if err := json.Unmarshal(raw, &apiReq); err == nil && apiReq.Body != "" {
+	if err := json.Unmarshal(raw, &apiReq); err == nil && apiReq.RequestContext.HTTP.Method != "" {
 		return handleAPIRequest(apiReq)
 	}
 
@@ -90,8 +90,34 @@ func handleEventBridge(payload EventBridgePayload) (any, error) {
 	}, nil
 }
 
-// handleAPIRequest handles incoming webhook requests from Jotform via API Gateway.
+// handleAPIRequest handles incoming requests to the function URL. Requests to /redirect come
+// from a member's browser after submitting the Training form; everything else is a Jotform webhook.
 func handleAPIRequest(req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
+	rememberBaseURL(req.RequestContext.DomainName)
+
+	switch req.RawPath {
+	case redirectPath, payPath, paymentCompletePath, stripeWebhookPath:
+		// The payment endpoints only exist in Stripe mode
+		if paymentMode != paymentModeStripe {
+			return htmlResponse(http.StatusNotFound, pageNotFound, clubEmail), nil
+		}
+		switch req.RawPath {
+		case redirectPath:
+			return handleRedirectRequest(req)
+		case payPath:
+			return handlePayLink(req)
+		case paymentCompletePath:
+			return handlePaymentComplete(req)
+		default:
+			return handleStripeWebhook(req)
+		}
+	}
+
+	// Jotform webhooks are POSTs. Anything else, such as a browser asking for /favicon.ico, is not found.
+	if req.RequestContext.HTTP.Method != "" && req.RequestContext.HTTP.Method != http.MethodPost {
+		return plainResponse(http.StatusNotFound, "not found"), nil
+	}
+
 	fmt.Printf("Handle API, body %s", req.Body)
 
 	formData, err := jotform_webhook.DecodeBase64Multipart(req.Body)
@@ -164,6 +190,28 @@ func main() {
 		fmt.Printf("Accepting only forms with title suffix %q\n", suffix)
 	}
 
+	// Both are unset in production: bank transfer payments, and the live Training form.
+	// An invalid value stops the Lambda starting rather than falling back to production's form.
+	var configErr error
+	paymentMode, configErr = parsePaymentMode(os.Getenv("PAYMENT_MODE"))
+	if configErr != nil {
+		fmt.Printf("ERROR: %v\n", configErr)
+		return
+	}
+	trainingFormID, configErr = parseTrainingFormID(os.Getenv("TRAINING_FORM_ID"))
+	if configErr != nil {
+		fmt.Printf("ERROR: %v\n", configErr)
+		return
+	}
+	paymentWindow, configErr = parsePaymentWindow(os.Getenv("PAYMENT_WINDOW"))
+	if configErr != nil {
+		fmt.Printf("ERROR: %v\n", configErr)
+		return
+	}
+	if paymentMode != paymentModeBACS || trainingFormID != productionTrainingFormID {
+		fmt.Printf("Payment mode %q, training form %d, payment window %s\n", paymentMode, trainingFormID, paymentWindow)
+	}
+
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
@@ -184,6 +232,9 @@ func main() {
 		MonitorEmail:  testEmail,
 		ClubEmail:     clubEmail,
 		TrainingEmail: trainingEmail,
+		// In test mode every email goes only to the test address, whoever it is addressed to
+		TestMode:      testMode,
+		TestRecipient: testEmail,
 	})
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
@@ -212,6 +263,10 @@ func main() {
 
 	jotformClient = jotform.NewJotFormAPIClient(
 		getSecret("bathrc-jotform-apikey"), "json", logLevel == "debug")
+
+	if paymentMode == paymentModeStripe {
+		loadStripeConfig()
+	}
 
 	lambda.Start(handler)
 }

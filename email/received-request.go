@@ -8,10 +8,54 @@ import (
 
 type ReceivedRequestData struct {
 	FirstName, Venue, TrainingDate, AccountNumber, SortCode, Reference, Amount, PayDate, ExtraText string
+	// PayLink, when set, replaces the bank transfer details with a payment link
+	PayLink string
+	// PayDeadline, when set with PayLink, is when the place will be released if unpaid
+	PayDeadline string
 }
 
 type ReceivedRequest2Data struct {
 	FirstName, Venue, TrainingDate, Venue2, TrainingDate2, AccountNumber, SortCode, Reference, Amount, PayDate, ExtraText string
+	// PayLink, when set, replaces the bank transfer details with a payment link
+	PayLink string
+	// PayDeadline, when set with PayLink, is when the places will be released if unpaid
+	PayDeadline string
+	// DuplicateSessions names the earlier booked sessions that a duplicate request repeats
+	DuplicateSessions string
+}
+
+// PayLinkDetails is an online payment link and the amount it asks for.
+type PayLinkDetails struct {
+	URL         string
+	AmountPence int64
+	// Deadline, if set, is when an unpaid booking will be released, formatted for display
+	Deadline string
+}
+
+// amountText is the amount to show: the payment link's amount, or the bookings' total.
+func amountText(pay *PayLinkDetails, submissions ...*db.TrainingSubmission) string {
+	if pay != nil {
+		return formatAmount(pay.AmountPence)
+	}
+	var total int64
+	for _, submission := range submissions {
+		total += submission.AmountPence
+	}
+	return formatAmount(total)
+}
+
+func payLinkURL(pay *PayLinkDetails) string {
+	if pay == nil {
+		return ""
+	}
+	return pay.URL
+}
+
+func payDeadline(pay *PayLinkDetails) string {
+	if pay == nil {
+		return ""
+	}
+	return pay.Deadline
 }
 
 func formatAmount(amountPence int64) string {
@@ -34,6 +78,15 @@ func earliestDate(dates ...time.Time) time.Time {
 
 // SendReceivedRequest sends an acknowledgment email for one or more training requests, including payment instructions.
 func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissions []*db.TrainingSubmission, extraText string) {
+	eh.sendReceivedRequest(members, submissions, extraText, nil)
+}
+
+// SendReceivedRequestPayLink sends the acknowledgment email with an online payment link instead of bank details.
+func (eh *EmailHandler) SendReceivedRequestPayLink(members []*db.MemberRecord, submissions []*db.TrainingSubmission, extraText string, pay PayLinkDetails) {
+	eh.sendReceivedRequest(members, submissions, extraText, &pay)
+}
+
+func (eh *EmailHandler) sendReceivedRequest(members []*db.MemberRecord, submissions []*db.TrainingSubmission, extraText string, pay *PayLinkDetails) {
 	if len(members) == 0 {
 		fmt.Printf("Cannot send email, no valid membership numbers to send them too")
 		return
@@ -49,9 +102,11 @@ func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissi
 			AccountNumber: eh.params.AccountNumber,
 			SortCode:      eh.params.SortCode,
 			Reference:     submission.PaymentReference,
-			Amount:        formatAmount(submission.AmountPence),
+			Amount:        amountText(pay, submission),
 			PayDate:       formatCustomDate(submission.PayByDate),
 			ExtraText:     extraText,
+			PayLink:       payLinkURL(pay),
+			PayDeadline:   payDeadline(pay),
 		})
 	} else if len(submissions) == 2 {
 		// Assume entry 2 submission
@@ -76,9 +131,11 @@ func (eh *EmailHandler) SendReceivedRequest(members []*db.MemberRecord, submissi
 			AccountNumber: eh.params.AccountNumber,
 			SortCode:      eh.params.SortCode,
 			Reference:     submissions[0].PaymentReference,
-			Amount:        formatAmount(submissions[0].AmountPence + submissions[1].AmountPence),
+			Amount:        amountText(pay, submissions[0], submissions[1]),
 			PayDate:       formatCustomDate(earliestDate(submissions[0].PayByDate, submissions[1].PayByDate)),
 			ExtraText:     extraText,
+			PayLink:       payLinkURL(pay),
+			PayDeadline:   payDeadline(pay),
 		})
 	} else {
 		// TODO - more that 2 entry submission
