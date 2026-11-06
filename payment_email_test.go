@@ -59,13 +59,20 @@ func TestPayLinkDetailsFor_Errors(t *testing.T) {
 }
 
 func TestRefreshedPriceText(t *testing.T) {
-	if got := refreshedPriceText(false, false); got != "" {
+	if got := refreshedPriceText(nil, nil, false); got != "" {
 		t.Errorf("no change should have no text, got %q", got)
 	}
-	if got := refreshedPriceText(true, false); !strings.Contains(got, "non-member price applies") {
-		t.Errorf("lapsed: %q", got)
+	if got := refreshedPriceText([]string{"Olivia"}, nil, false); !strings.Contains(got, "Your membership") || !strings.Contains(got, "non-member price applies") {
+		t.Errorf("one rider, lapsed: %q", got)
 	}
-	if got := refreshedPriceText(false, true); !strings.Contains(got, "member price applies") || strings.Contains(got, "non-member") {
+	if got := refreshedPriceText([]string{"Olivia"}, nil, true); !strings.Contains(got, "Olivia’s membership") || strings.Contains(got, "Your membership") {
+		t.Errorf("two riders, one lapsed: %q", got)
+	}
+	got := refreshedPriceText([]string{"Olivia"}, []string{"Ben"}, true)
+	if !strings.Contains(got, "Olivia’s membership doesn’t cover") || !strings.Contains(got, "Ben’s membership is valid") {
+		t.Errorf("two riders, one lapsed and one now a member: %q", got)
+	}
+	if got := refreshedPriceText(nil, []string{"Ben"}, false); !strings.Contains(got, "member price applies") || strings.Contains(got, "non-member") {
 		t.Errorf("now a member: %q", got)
 	}
 }

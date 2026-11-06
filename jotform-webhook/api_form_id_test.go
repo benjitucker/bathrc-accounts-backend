@@ -37,4 +37,7 @@ func TestTrainingRawRequestWithID_CreatedAtIsUSEastern(t *testing.T) {
 	if !got.Equal(want) {
 		t.Errorf("submit date %s, want %s", got, want)
 	}
+	if loc := time.Time(r.SubmitDate).Location(); loc != time.UTC {
+		t.Errorf("submit date should be stored in UTC, got %s", loc)
+	}
 }

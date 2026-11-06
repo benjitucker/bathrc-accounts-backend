@@ -36,8 +36,9 @@ func (r *TrainingRawRequestWithID) UnmarshalJSON(b []byte) error {
 	r.FormID = sub.FormID
 
 	// The API reports times in the account's time zone (US Eastern), not UTC
+	// (stored in UTC, so dates such as "requested today" don't depend on the API's time zone)
 	created, _ := time.ParseInLocation("2006-01-02 15:04:05", sub.CreatedAt, apiTimeZone)
-	r.SubmitDate = UnixMillis(created)
+	r.SubmitDate = UnixMillis(created.UTC())
 
 	// Build name lookup
 	byName := map[string]apiAnswerField{}
