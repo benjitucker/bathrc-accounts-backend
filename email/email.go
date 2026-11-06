@@ -297,6 +297,7 @@ func (eh *EmailHandler) Render(templateName string, data any) (subject, html, te
 	}
 
 	subject = t.Subject
+	tidyForDisplay(data)
 
 	if t.HTML != nil {
 		var buf bytes.Buffer
