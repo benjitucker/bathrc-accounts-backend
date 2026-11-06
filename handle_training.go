@@ -68,6 +68,9 @@ func processTrainingRequest(submissionId string, request jotform_webhook.Trainin
 	if err != nil {
 		return false, fmt.Errorf("failed to get received submissions for duplicate check: %w", err)
 	}
+	if paymentMode == paymentModeStripe {
+		receivedSubmissions = openForDuplicateCheck(receivedSubmissions, time.Now())
+	}
 
 	for _, entry := range rawRequest.Entries {
 
