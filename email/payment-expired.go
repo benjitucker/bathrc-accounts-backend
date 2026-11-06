@@ -32,7 +32,7 @@ func (eh *EmailHandler) SendPaymentExpired(members []*db.MemberRecord, submissio
 	var sessions []string
 	for _, submission := range submissions {
 		sessions = append(sessions, fmt.Sprintf("a training session at %s on %s",
-			submission.Venue, formatCustomDateTime(submission.TrainingDate)))
+			VenueDisplayName(submission.Venue), formatCustomDateTime(submission.TrainingDate)))
 	}
 
 	eh.SendEmailPretty(recipients, "payment-expired", &PaymentExpiredData{

@@ -3,6 +3,7 @@ package email
 import (
 	"benjitucker/bathrc-accounts/db"
 	"fmt"
+	"strings"
 )
 
 // SendReceivedDuplicateRequest sends an acknowledgment email for one or more training requests where it was found to contain a duplicate
@@ -68,12 +69,19 @@ func (eh *EmailHandler) sendReceivedDuplicateRequest(members []*db.MemberRecord,
 			templateName = "received-duplicate-request2"
 		}
 
+		var duplicates []string
+		for _, dupOfSub := range dupOfSubmissions {
+			duplicates = append(duplicates, fmt.Sprintf("%s on %s",
+				VenueDisplayName(dupOfSub.Venue), formatCustomDateTime(dupOfSub.TrainingDate)))
+		}
+
 		eh.SendEmailPretty(recipients, templateName, &ReceivedRequest2Data{
-			FirstName:     firstNames,
-			Venue:         submissions[0].Venue,
-			TrainingDate:  formatCustomDateTime(submissions[0].TrainingDate),
-			Venue2:        submissions[1].Venue,
-			TrainingDate2: formatCustomDateTime(submissions[1].TrainingDate),
+			FirstName:         firstNames,
+			Venue:             submissions[0].Venue,
+			TrainingDate:      formatCustomDateTime(submissions[0].TrainingDate),
+			Venue2:            submissions[1].Venue,
+			TrainingDate2:     formatCustomDateTime(submissions[1].TrainingDate),
+			DuplicateSessions: strings.Join(duplicates, " and "),
 		})
 	} else {
 		// TODO - more that 2 entry submission
