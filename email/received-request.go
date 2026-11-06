@@ -20,6 +20,8 @@ type ReceivedRequest2Data struct {
 	PayLink string
 	// PayDeadline, when set with PayLink, is when the places will be released if unpaid
 	PayDeadline string
+	// DuplicateSessions names the earlier booked sessions that a duplicate request repeats
+	DuplicateSessions string
 }
 
 // PayLinkDetails is an online payment link and the amount it asks for.
